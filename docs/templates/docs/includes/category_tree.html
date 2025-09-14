@@ -1,0 +1,36 @@
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="bi bi-folder"></i> Категории</h5>
+    </div>
+    <div class="card-body">
+        <ul class="category-tree">
+            <li>
+                <a href="{% url 'docs:article_list' %}"
+                   class="{% if not category %}fw-bold text-primary{% endif %}">
+                    <i class="bi bi-journal"></i> Все статьи
+                </a>
+            </li>
+            {% for cat in categories %}
+            <li>
+                <a href="{{ cat.get_absolute_url }}"
+                   class="{% if category and category.id == cat.id %}fw-bold text-primary{% endif %}">
+                    <i class="bi bi-folder{% if cat.children.all %}-plus{% endif %}"></i>
+                    {{ cat.name }}
+                </a>
+                {% if cat.children.all %}
+                <ul>
+                    {% for child in cat.children.all %}
+                    <li>
+                        <a href="{{ child.get_absolute_url }}"
+                           class="{% if category and category.id == child.id %}fw-bold text-primary{% endif %}">
+                            <i class="bi bi-folder"></i> {{ child.name }}
+                        </a>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% endif %}
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+</div>
