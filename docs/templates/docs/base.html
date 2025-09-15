@@ -46,9 +46,13 @@
             </span>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="{% url 'docs:logout' %}">
-                        <i class="bi bi-box-arrow-right"></i> Выйти
-                    </a>
+                    <form method="post" action="{% url 'docs:logout' %}" class="d-inline">
+                        {% csrf_token %}
+                        <button type="submit" class="nav-link btn btn-link border-0 p-0"
+                                style="background: none; border: none; cursor: pointer;">
+                            <i class="bi bi-box-arrow-right"></i> Выйти
+                        </button>
+                    </form>
                 </li>
                 {% else %}
                 <li class="nav-item">

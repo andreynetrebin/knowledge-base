@@ -12,6 +12,7 @@ from markdown.extensions.codehilite import CodeHiliteExtension
 from django.contrib.auth import login
 from django.contrib import messages
 from .forms import UserRegisterForm
+from django.contrib.auth import logout
 
 
 class ArticleListView(ListView):
@@ -146,8 +147,15 @@ class LoginView(auth_views.LoginView):
     template_name = 'docs/auth/login.html'
 
 
-class LogoutView(auth_views.LogoutView):
-    template_name = 'docs/auth/logout.html'
+# Удаляем класс LogoutView и заменяем на:
+def logout_view(request):
+    """Представление для выхода из системы"""
+    if request.method == 'POST':
+        logout(request)
+        return redirect('docs:login')
+    else:
+        # Для GET запросов перенаправляем на страницу подтверждения
+        return render(request, 'docs/auth/logout_confirm.html')
 
 
 # Добавляем после существующих представлений
