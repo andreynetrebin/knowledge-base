@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test MDEditor</title>
+    <!-- Подключаем jQuery первым -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    {{ form.media }}
+</head>
+<body>
+    <h1>Test MDEditor</h1>
+    <form method="post">
+        {% csrf_token %}
+        {{ form.content }}
+        <button type="submit">Submit</button>
+    </form>
+</body>
+</html>

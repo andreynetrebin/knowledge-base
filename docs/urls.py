@@ -8,13 +8,16 @@ urlpatterns = [
     path('', views.ArticleListView.as_view(), name='article_list'),
 
     # Создание новой статьи
-    path('articles/create/', views.ArticleCreateView.as_view(), name='article_create'),
+    path('articles/create/', views.ArticleCreateView.as_view(), name='create_article'),  # ИЗМЕНИЛИ: article_create → create_article
+
+    # Помощь по форматированию
+    path('formatting-help/', views.formatting_help, name='formatting_help'),
 
     # Просмотр статьи
     path('articles/<slug:slug>/', views.ArticleDetailView.as_view(), name='article_detail'),
 
     # Редактирование статьи
-    path('articles/<slug:slug>/edit/', views.ArticleUpdateView.as_view(), name='article_edit'),
+    path('articles/<slug:slug>/edit/', views.ArticleUpdateView.as_view(), name='edit_article'),  # ДОБАВИЛИ: согласованное имя
 
     # Статьи по категории
     path('category/<slug:slug>/', views.CategoryArticlesView.as_view(), name='category_articles'),

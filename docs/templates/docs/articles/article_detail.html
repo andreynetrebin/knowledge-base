@@ -60,7 +60,7 @@
 
                     <div class="btn-group">
                         {% if user == article.author %}
-                        <a href="{% url 'docs:article_edit' article.slug %}" class="btn btn-outline-primary btn-sm">
+                        <a href="{% url 'docs:edit_article' article.slug %}" class="btn btn-outline-primary btn-sm">
                             <i class="bi bi-pencil"></i> Редактировать
                         </a>
                         {% endif %}
