@@ -91,14 +91,16 @@ MDEDITOR_CONFIGS = {
         'toolbar': [
             "undo", "redo", "|",
             "bold", "italic", "quote", "|",
-            "h1", "h2", "h3", "|",
+            "h1", "h2", "h3", "h4", "h5", "h6", "|",
             "list-ul", "list-ol", "hr", "|",
-            "link", "reference-link", "image", "code", "|",
+            "link", "image", "code", "table", "|",
             "watch", "preview", "fullscreen"
         ],
         'upload_image_formats': ["jpg", "jpeg", "gif", "png", "bmp", "webp"],
         'image_folder': 'editor',
-        'language': 'ru',
+        'language': 'ru',  # Поставьте английский чтобы меньше китайского было
+        'imageUpload': True,
+        'imageUploadURL': '/mdeditor/uploads/',  # URL для загрузки изображений
     }
 }
 
@@ -108,3 +110,16 @@ LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/accounts/login/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+# Настройки безопасности для MDEditor
+X_FRAME_OPTIONS = 'SAMEORIGIN'  # Разрешаем встраивание в iframe на том же домене
+
+# CSRF настройки
+CSRF_TRUSTED_ORIGINS = [
+    'http://127.0.0.1:8000',
+    'http://localhost:8000',
+]
+
+# Или если у вас есть домен, добавьте его
+# CSRF_TRUSTED_ORIGINS = [
+#     'http://yourdomain.com',
+# ]

@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test MDEditor</title>
+    {{ form.media }}
+</head>
+<body>
+    <h1>Test MDEditor</h1>
+    <form method="post">
+        {% csrf_token %}
+        <div>
+            <label>Content:</label>
+            {{ form.content }}
+        </div>
+        <button type="submit">Submit</button>
+    </form>
+</body>
+</html>

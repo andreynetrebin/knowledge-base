@@ -74,9 +74,17 @@ class ArticleCreateView(LoginRequiredMixin, CreateView):
     form_class = ArticleForm
     template_name = 'docs/articles/article_form.html'
 
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['request'] = self.request
+        return kwargs
+
     def form_valid(self, form):
         form.instance.author = self.request.user
-        messages.success(self.request, 'Статья успешно создана!')
+        if form.instance.status == 'published':
+            messages.success(self.request, 'Статья успешно создана и опубликована!')
+        else:
+            messages.success(self.request, 'Статья успешно сохранена как черновик!')
         return super().form_valid(form)
 
     def get_success_url(self):
@@ -91,13 +99,17 @@ class ArticleUpdateView(LoginRequiredMixin, UpdateView):
     def get_queryset(self):
         return Article.objects.filter(author=self.request.user)
 
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['request'] = self.request
+        return kwargs
+
     def form_valid(self, form):
         messages.success(self.request, 'Статья успешно обновлена!')
         return super().form_valid(form)
 
     def get_success_url(self):
         return reverse_lazy('docs:article_detail', kwargs={'slug': self.object.slug})
-
 
 class CategoryArticlesView(ListView):
     model = Article
@@ -173,3 +185,8 @@ def register_view(request):
         form = UserRegisterForm()
 
     return render(request, 'docs/auth/register.html', {'form': form})
+
+
+def formatting_help(request):
+    """Страница помощи по форматированию"""
+    return render(request, 'docs/formatting_help.html')

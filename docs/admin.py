@@ -4,6 +4,18 @@ from django.contrib.auth.admin import UserAdmin
 from django.utils.html import format_html
 from .models import Article, Category
 from django.utils import timezone
+from django import forms
+from mdeditor.fields import MDTextFormField
+
+
+# Форма для админки с MDEditor
+class ArticleAdminForm(forms.ModelForm):
+    content = MDTextFormField()
+
+    class Meta:
+        model = Article
+        fields = '__all__'
+
 
 # Отмена регистрации стандартных моделей (если нужно кастомное отображение)
 # admin.site.unregister(User)
@@ -33,14 +45,17 @@ class CategoryAdmin(admin.ModelAdmin):
     )
 
 
+
+
 @admin.register(Article)
 class ArticleAdmin(admin.ModelAdmin):
+    form = ArticleAdminForm  # ← используем нашу форму
     list_display = ['title', 'author', 'category', 'status', 'view_count',
                     'created_at', 'published_at', 'preview_link']
     list_filter = ['status', 'category', 'created_at', 'published_at']
     search_fields = ['title', 'content', 'excerpt', 'author__username']
     list_editable = ['status']
-    readonly_fields = ['created_at', 'updated_at', 'published_at', 'view_count', 'slug']
+    readonly_fields = ['created_at', 'updated_at', 'published_at', 'view_count']  # УБРАЛИ 'slug' отсюда
     prepopulated_fields = {'slug': ('title',)}
     date_hierarchy = 'created_at'
 
@@ -89,26 +104,25 @@ class ArticleAdmin(admin.ModelAdmin):
             kwargs["queryset"] = User.objects.filter(id=request.user.id)
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
-
     actions = ['make_published', 'make_draft', 'make_archived']
 
     def make_published(self, request, queryset):
-        updated = queryset.update(status='published')
+        updated = queryset.update(status='published', published_at=timezone.now())
         self.message_user(request, f'{updated} статей опубликовано')
+
     make_published.short_description = 'Опубликовать выбранные статьи'
 
     def make_draft(self, request, queryset):
         updated = queryset.update(status='draft')
         self.message_user(request, f'{updated} статей перемещено в черновики')
+
     make_draft.short_description = 'В черновики'
 
     def make_archived(self, request, queryset):
         updated = queryset.update(status='archived')
         self.message_user(request, f'{updated} статей архивировано')
+
     make_archived.short_description = 'Архивировать'
-
-
-    # inlines = [CommentInline]
 
 # Кастомная админка для пользователей (опционально)
 class CustomUserAdmin(UserAdmin):
@@ -130,8 +144,6 @@ admin.site.register(User, CustomUserAdmin)
 admin.site.site_header = 'Панель управления Базой знаний'
 admin.site.site_title = 'База знаний'
 admin.site.index_title = 'Добро пожаловать в панель управления'
-
-
 
 
 class PublishedFilter(admin.SimpleListFilter):
@@ -161,4 +173,3 @@ class PublishedFilter(admin.SimpleListFilter):
 #     model = Comment  # Предполагаемая модель
 #     extra = 0
 #     readonly_fields = ['created_at']
-

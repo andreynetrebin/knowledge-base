@@ -144,3 +144,54 @@
     position: sticky;
     top: 20px;
 }
+
+/* Принудительно скрываем китайский текст и заменяем на русский */
+.editormd-dialog-header h1:contains("添加图片") {
+    font-size: 0 !important;
+}
+.editormd-dialog-header h1:contains("添加图片")::after {
+    content: "Добавить изображение" !important;
+    font-size: 16px !important;
+    display: block !important;
+}
+
+.editormd-form label:contains("图片地址") {
+    font-size: 0 !important;
+}
+.editormd-form label:contains("图片地址")::after {
+    content: "URL изображения" !important;
+    font-size: 14px !important;
+}
+
+.editormd-form label:contains("图片描述") {
+    font-size: 0 !important;
+}
+.editormd-form label:contains("图片描述")::after {
+    content: "Описание изображения" !important;
+    font-size: 14px !important;
+}
+
+.editormd-form label:contains("图片链接") {
+    font-size: 0 !important;
+}
+.editormd-form label:contains("图片链接")::after {
+    content: "Ссылка на изображение" !important;
+    font-size: 14px !important;
+}
+
+/* Кнопки */
+.editormd-dialog-footer button:contains("确定") {
+    font-size: 0 !important;
+}
+.editormd-dialog-footer button:contains("确定")::after {
+    content: "OK" !important;
+    font-size: 14px !important;
+}
+
+.editormd-dialog-footer button:contains("取消") {
+    font-size: 0 !important;
+}
+.editormd-dialog-footer button:contains("取消")::after {
+    content: "Отмена" !important;
+    font-size: 14px !important;
+}

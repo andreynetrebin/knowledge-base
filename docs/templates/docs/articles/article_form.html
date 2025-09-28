@@ -2,174 +2,95 @@
 {% load static %}
 
 {% block title %}
-    {% if form.instance.pk %}Редактирование статьи{% else %}Создание статьи{% endif %}
+    {% if form.instance.pk %}Редактировать статью{% else %}Создать статью{% endif %}
 {% endblock %}
 
 {% block extra_css %}
-{{ form.media.css }}
 <style>
-    .mdeditor-wrapper {
-        border: 1px solid #dee2e6;
-        border-radius: 0.375rem;
-        overflow: hidden;
-    }
-
-    .form-section {
-        background: #f8f9fa;
-        padding: 1.5rem;
-        border-radius: 0.5rem;
-        margin-bottom: 1.5rem;
-    }
-
-    .form-section h5 {
-        color: #495057;
-        border-bottom: 2px solid #dee2e6;
-        padding-bottom: 0.5rem;
-        margin-bottom: 1rem;
+    /* Гарантируем, что редактор виден */
+    .editormd {
+        z-index: 1000 !important;
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="row justify-content-center">
-    <div class="col-lg-10">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h1>
-                <i class="bi bi-journal-plus"></i>
-                {% if form.instance.pk %}Редактирование статьи{% else %}Новая статья{% endif %}
-            </h1>
-            <a href="{% if form.instance.pk %}{% url 'docs:article_detail' form.instance.slug %}{% else %}{% url 'docs:article_list' %}{% endif %}"
-               class="btn btn-outline-secondary">
-                <i class="bi bi-arrow-left"></i> Отмена
-            </a>
-        </div>
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">
+                        {% if form.instance.pk %}
+                            ✏️ Редактировать статью
+                        {% else %}
+                            📝 Создать новую статью
+                        {% endif %}
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <form method="post" novalidate>
+                        {% csrf_token %}
 
-        <form method="post" enctype="multipart/form-data">
-            {% csrf_token %}
-
-            <!-- Основная информация -->
-            <div class="form-section">
-                <h5><i class="bi bi-info-circle"></i> Основная информация</h5>
-
-                <div class="row">
-                    <div class="col-md-8">
                         <div class="mb-3">
-                            <label class="form-label">Заголовок статьи *</label>
+                            <label class="form-label">{{ form.title.label }}</label>
                             {{ form.title }}
-                            {% if form.title.errors %}
-                            <div class="text-danger small">{{ form.title.errors }}</div>
-                            {% endif %}
-                            <div class="form-text">Придумайте понятный и informative заголовок</div>
                         </div>
-                    </div>
 
-                    <div class="col-md-4">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">{{ form.category.label }}</label>
+                                {{ form.category }}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">{{ form.status.label }}</label>
+                                {{ form.status }}
+                            </div>
+                        </div>
+
                         <div class="mb-3">
-                            <label class="form-label">Статус</label>
-                            {{ form.status }}
-                            {% if form.status.errors %}
-                            <div class="text-danger small">{{ form.status.errors }}</div>
-                            {% endif %}
+                            <label class="form-label">{{ form.excerpt.label }}</label>
+                            {{ form.excerpt }}
                         </div>
-                    </div>
-                </div>
 
-                <div class="mb-3">
-                    <label class="form-label">Краткое описание</label>
-                    {{ form.excerpt }}
-                    {% if form.excerpt.errors %}
-                    <div class="text-danger small">{{ form.excerpt.errors }}</div>
-                    {% endif %}
-                    <div class="form-text">Необязательное краткое описание статьи</div>
-                </div>
+                        <div class="mb-4">
+                            <label class="form-label">{{ form.content.label }}</label>
+                            <div id="mdeditor-container">
+                                {{ form.content }}
+                            </div>
+                        </div>
 
-                <div class="mb-3">
-                    <label class="form-label">Категория *</label>
-                    {{ form.category }}
-                    {% if form.category.errors %}
-                    <div class="text-danger small">{{ form.category.errors }}</div>
-                    {% endif %}
+                        <div class="d-flex justify-content-between">
+                            <a href="{% if form.instance.pk %}{% url 'docs:article_detail' form.instance.slug %}{% else %}{% url 'docs:article_list' %}{% endif %}"
+                               class="btn btn-secondary">Отмена</a>
+                            <button type="submit" class="btn btn-primary">
+                                {% if form.instance.pk %}Сохранить{% else %}Создать{% endif %}
+                            </button>
+                        </div>
+                    </form>
                 </div>
             </div>
-
-            <!-- Содержание -->
-            <div class="form-section">
-                <h5><i class="bi bi-journal-text"></i> Содержание статьи</h5>
-
-                <div class="mb-3">
-                    <label class="form-label">Текст статьи *</label>
-                    <div class="mdeditor-wrapper">
-                        {{ form.content }}
-                    </div>
-                    {% if form.content.errors %}
-                    <div class="text-danger small">{{ form.content.errors }}</div>
-                    {% endif %}
-                    <div class="form-text">
-                        Используйте Markdown-разметку. Поддерживаются:
-                        <strong>жирный текст</strong>, <em>курсив</em>, код, списки, таблицы и изображения
-                    </div>
-                </div>
-            </div>
-
-            <!-- Кнопки отправки -->
-            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-                <button type="submit" class="btn btn-primary btn-lg">
-                    <i class="bi bi-check-circle"></i>
-                    {% if form.instance.pk %}Сохранить изменения{% else %}Создать статью{% endif %}
-                </button>
-                <a href="{% if form.instance.pk %}{% url 'docs:article_detail' form.instance.slug %}{% else %}{% url 'docs:article_list' %}{% endif %}"
-                   class="btn btn-outline-secondary btn-lg">
-                    Отмена
-                </a>
-            </div>
-        </form>
+        </div>
     </div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
-{{ form.media.js }}
+<!-- МЕДИА-ФАЙЛЫ MDEditor -->
+{{ form.media }}
+
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Добавляем подсказки для поля заголовка
-    const titleInput = document.querySelector('#id_title');
-    if (titleInput) {
-        titleInput.addEventListener('input', function() {
-            const slugPreview = this.value.toLowerCase()
-                .replace(/[^\w\s-]/g, '')
-                .replace(/[-\s]+/g, '-')
-                .trim();
-            console.log('Предпросмотр slug:', slugPreview);
-        });
-    }
+// Дополнительная проверка что все загружено
+$(document).ready(function() {
+    console.log('jQuery loaded:', typeof $ !== 'undefined');
+    console.log('editormd loaded:', typeof editormd !== 'undefined');
 
-    // Валидация формы
-    const form = document.querySelector('form');
-    if (form) {
-        form.addEventListener('submit', function(e) {
-            const title = document.querySelector('#id_title').value.trim();
-            const content = document.querySelector('#id_content').value.trim();
-            const category = document.querySelector('#id_category').value;
-
-            if (!title) {
-                e.preventDefault();
-                alert('Пожалуйста, заполните заголовок статьи');
-                return false;
-            }
-
-            if (!content) {
-                e.preventDefault();
-                alert('Пожалуйста, заполните содержание статьи');
-                return false;
-            }
-
-            if (!category) {
-                e.preventDefault();
-                alert('Пожалуйста, выберите категорию');
-                return false;
-            }
-        });
-    }
+    // Принудительно переинициализируем редактор если нужно
+    setTimeout(function() {
+        if (typeof editormd !== 'undefined') {
+            console.log('MDEditor is available');
+        }
+    }, 1000);
 });
 </script>
 {% endblock %}

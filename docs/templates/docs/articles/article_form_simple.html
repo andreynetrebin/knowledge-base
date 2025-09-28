@@ -1,0 +1,182 @@
+{% extends 'docs/base.html' %}
+{% load static %}
+
+{% block title %}Новая статья - База знаний{% endblock %}
+
+{% block extra_css %}
+{{ form.media.css }}
+<style>
+    .editor-guide {
+        background: #f8f9fa;
+        border-left: 4px solid #007bff;
+        padding: 1rem;
+        margin-bottom: 1.5rem;
+        border-radius: 0 5px 5px 0;
+    }
+
+    .format-tips {
+        background: #e7f3ff;
+        padding: 1rem;
+        border-radius: 5px;
+        margin-bottom: 1.5rem;
+    }
+
+    .format-tips h6 {
+        color: #0056b3;
+        margin-bottom: 0.5rem;
+    }
+
+    .tip-item {
+        margin-bottom: 0.3rem;
+        font-size: 0.9em;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-10">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1>
+                <i class="bi bi-journal-plus"></i>
+                Новая статья
+            </h1>
+            <a href="{% url 'docs:article_list' %}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> Отмена
+            </a>
+        </div>
+
+        <!-- Подсказки по форматированию -->
+        <div class="format-tips">
+            <h6><i class="bi bi-lightbulb"></i> Советы по форматированию:</h6>
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="tip-item"><strong>Заголовки:</strong> Используйте кнопки H1, H2, H3</div>
+                    <div class="tip-item"><strong>Жирный текст:</strong> Выделите текст и нажмите <strong>B</strong></div>
+                    <div class="tip-item"><strong>Курсив:</strong> Выделите текст и нажмите <em>I</em></div>
+                </div>
+                <div class="col-md-6">
+                    <div class="tip-item"><strong>Списки:</strong> Кнопки с точками и цифрами</div>
+                    <div class="tip-item"><strong>Ссылки:</strong> Кнопка с цепочкой 🔗</div>
+                    <div class="tip-item"><strong>Изображения:</strong> Кнопка с изображением 🖼️</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="text-center mb-4">
+            <small class="text-muted">
+                Нужна помощь?
+                <a href="{% url 'docs:formatting_help' %}" class="text-decoration-none">
+                    Посмотрите руководство по форматированию
+                </a>
+            </small>
+        </div>
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+
+            <!-- Основная информация -->
+            <div class="card mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0"><i class="bi bi-info-circle"></i> Основная информация</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Заголовок статьи *</label>
+                                {{ form.title }}
+                                <div class="form-text text-muted">{{ form.title.help_text }}</div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Категория *</label>
+                                {{ form.category }}
+                                <div class="form-text text-muted">{{ form.category.help_text }}</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Краткое описание</label>
+                        {{ form.excerpt }}
+                        <div class="form-text text-muted">{{ form.excerpt.help_text }}</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Содержание -->
+            <div class="card mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0"><i class="bi bi-journal-text"></i> Содержание статьи *</h5>
+                </div>
+                <div class="card-body">
+                    <div class="editor-guide">
+                        <strong>💡 Просто пишите текст - форматирование делается кнопками!</strong>
+                        <br>Не нужно знать Markdown - используйте панель инструментов выше.
+                    </div>
+
+                    <div class="mb-3">
+                        {{ form.content }}
+                        <div class="form-text text-muted">{{ form.content.help_text }}</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Кнопки отправки -->
+            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                <button type="submit" class="btn btn-success btn-lg">
+                    <i class="bi bi-check-circle"></i> Опубликовать статью
+                </button>
+                <a href="{% url 'docs:article_list' %}" class="btn btn-outline-secondary btn-lg">
+                    Отмена
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{{ form.media.js }}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Простые подсказки при фокусе
+    const titleField = document.querySelector('#id_title');
+    if (titleField) {
+        titleField.addEventListener('focus', function() {
+            console.log('Напишите понятный заголовок, который привлечет внимание');
+        });
+    }
+
+    // Валидация перед отправкой
+    const form = document.querySelector('form');
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            const title = document.querySelector('#id_title').value.trim();
+            const content = document.querySelector('#id_content').value.trim();
+            const category = document.querySelector('#id_category').value;
+
+            if (!title) {
+                e.preventDefault();
+                alert('Пожалуйста, напишите заголовок статьи');
+                return false;
+            }
+
+            if (!content) {
+                e.preventDefault();
+                alert('Пожалуйста, напишите содержание статьи');
+                return false;
+            }
+
+            if (!category) {
+                e.preventDefault();
+                alert('Пожалуйста, выберите категорию');
+                return false;
+            }
+        });
+    }
+});
+</script>
+{% endblock %}
