@@ -49,6 +49,11 @@
             {% for article in articles %}
             <div class="col-md-6 mb-4">
                 <div class="card article-card h-100">
+                    {% if article.is_pinned %}
+                    <div class="card-header py-2 bg-warning text-dark">
+                        <small><i class="bi bi-pin-angle"></i> Закреплено</small>
+                    </div>
+                    {% endif %}
                     <div class="card-body">
                         <h5 class="card-title">
                             <a href="{% url 'docs:article_detail' article.slug %}"
@@ -64,6 +69,18 @@
                             {{ article.content|striptags|truncatewords:20 }}
                         </p>
                         {% endif %}
+
+                        <!-- ДОБАВЛЯЕМ ТЕГИ СТАТЬИ -->
+                        {% if article.tags.all %}
+                        <div class="mt-2 mb-2">
+                            {% for tag in article.tags.all %}
+                                <a href="{% url 'docs:tag_articles' tag.slug %}"
+                                   class="badge bg-light text-dark text-decoration-none me-1">
+                                    {{ tag.name }}
+                                </a>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
                     </div>
                     <div class="card-footer bg-transparent">
                         <div class="d-flex justify-content-between align-items-center">
@@ -74,9 +91,21 @@
                                 <i class="bi bi-calendar"></i> {{ article.created_at|date:"d.m.Y" }}
                             </small>
                         </div>
-                        <small class="text-muted d-block mt-1">
-                            <i class="bi bi-folder"></i> {{ article.category.name }}
-                        </small>
+                        <div class="d-flex justify-content-between align-items-center mt-1">
+                            <small class="text-muted">
+                                <i class="bi bi-folder"></i>
+                                {% if article.category %}
+                                    <a href="{% url 'docs:category_articles' article.category.slug %}" class="text-muted text-decoration-none">
+                                        {{ article.category.name }}
+                                    </a>
+                                {% else %}
+                                    Без категории
+                                {% endif %}
+                            </small>
+                            <small class="text-muted">
+                                <i class="bi bi-eye"></i> {{ article.view_count }}
+                            </small>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -132,6 +161,32 @@
     <!-- Боковая панель -->
     <div class="col-lg-4">
         <div class="sticky-sidebar">
+            <!-- ДОБАВЛЯЕМ БЛОК ТЕГОВ -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-tags"></i> Популярные теги</h5>
+                </div>
+                <div class="card-body">
+                    {% if popular_tags %}
+                        <div class="d-flex flex-wrap gap-2">
+                            {% for tag in popular_tags %}
+                                <a href="{% url 'docs:tag_articles' tag.slug %}" class="btn btn-outline-primary btn-sm">
+                                    {{ tag.name }}
+                                    <span class="badge bg-primary ms-1">{{ tag.num_articles|default:tag.article_count }}</span>
+                                </a>
+                            {% endfor %}
+                        </div>
+                        <div class="text-center mt-3">
+                            <a href="{% url 'docs:tag_cloud' %}" class="btn btn-sm btn-outline-secondary">
+                                Все теги <i class="bi bi-arrow-right"></i>
+                            </a>
+                        </div>
+                    {% else %}
+                        <p class="text-muted">Тегов пока нет</p>
+                    {% endif %}
+                </div>
+            </div>
+
             <!-- Категории -->
             <div class="card mb-4">
                 <div class="card-header">
@@ -175,6 +230,14 @@
                     <div class="text-small text-muted">
                         <div class="mb-1">Статей: {{ articles.paginator.count }}</div>
                         <div class="mb-1">Категорий: {{ categories|length }}</div>
+                        <div class="mb-1">
+                            Тегов:
+                            {% if popular_tags %}
+                                {{ popular_tags|length }}
+                            {% else %}
+                                0
+                            {% endif %}
+                        </div>
                         {% if user.is_authenticated %}
                         <div>Вы вошли как: {{ user.username }}</div>
                         {% else %}

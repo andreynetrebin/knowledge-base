@@ -5,7 +5,35 @@ from django.urls import reverse
 from mptt.models import MPTTModel, TreeForeignKey
 from mdeditor.fields import MDTextField
 from django.utils import timezone
+from django.core.exceptions import ValidationError
+import uuid
 
+
+class Tag(models.Model):
+    """Модель для тегов статей"""
+    name = models.CharField(max_length=50, unique=True, verbose_name='Название')
+    slug = models.SlugField(max_length=50, unique=True, verbose_name='URL-тег')
+    description = models.TextField(blank=True, verbose_name='Описание')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Дата создания')
+
+    class Meta:
+        verbose_name = 'Тег'
+        verbose_name_plural = 'Теги'
+        ordering = ['name']
+
+    def __str__(self):
+        return self.name
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            self.slug = slugify(self.name)
+        super().save(*args, **kwargs)
+
+    def get_absolute_url(self):
+        return reverse('docs:tag_articles', kwargs={'slug': self.slug})
+
+    def article_count(self):
+        return self.articles.filter(status='published').count()
 
 class Category(MPTTModel):
     name = models.CharField(max_length=100, verbose_name="Название")
@@ -60,7 +88,7 @@ class Article(models.Model):
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Создано")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Обновлено")
     published_at = models.DateTimeField(null=True, blank=True, verbose_name="Опубликовано")
-
+    tags = models.ManyToManyField(Tag, blank=True, related_name='articles', verbose_name='Теги')
     class Meta:
         verbose_name = "Статья"
         verbose_name_plural = "Статьи"
@@ -69,8 +97,12 @@ class Article(models.Model):
     def save(self, *args, **kwargs):
         if not self.slug:
             self.slug = slugify(self.title)
+            # Добавляем UUID если slug уже существует
+            if Article.objects.filter(slug=self.slug).exists():
+                self.slug = f"{self.slug}-{uuid.uuid4().hex[:8]}"
 
         if self.status == 'published' and not self.published_at:
+            from django.utils import timezone
             self.published_at = timezone.now()
 
         super().save(*args, **kwargs)

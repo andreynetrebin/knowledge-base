@@ -4,7 +4,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.urls import reverse_lazy
 from django.db.models import Count, Q
 from django.contrib.auth import views as auth_views
-from .models import Article, Category
+from .models import Article, Category, Tag
 from .forms import ArticleForm
 import markdown
 from markdown.extensions.fenced_code import FencedCodeExtension
@@ -30,6 +30,10 @@ class ArticleListView(ListView):
         context['pinned_articles'] = Article.objects.filter(
             status='published', is_pinned=True
         )[:5]
+        # ДОБАВЛЯЕМ ОБЛАКО ТЕГОВ
+        context['popular_tags'] = Tag.objects.annotate(
+            num_articles=Count('articles')
+        ).filter(num_articles__gt=0).order_by('-num_articles')[:20]
         return context
 
 
@@ -39,7 +43,7 @@ class ArticleDetailView(DetailView):
     context_object_name = 'article'
 
     def get_queryset(self):
-        return Article.objects.filter(status='published')
+        return Article.objects.filter(status='published').prefetch_related('tags')
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -60,14 +64,57 @@ class ArticleDetailView(DetailView):
             output_format='html5'
         )
 
-        # Похожие статьи
-        context['related_articles'] = Article.objects.filter(
-            category=article.category,
+        # Похожие статьи (по тегам и категории)
+        related_articles = Article.objects.filter(
             status='published'
-        ).exclude(id=article.id)[:4]
+        ).exclude(id=article.id)
+
+        # Статьи с общими тегами
+        tag_ids = article.tags.values_list('id', flat=True)
+        if tag_ids:
+            related_articles = related_articles.filter(
+                tags__id__in=tag_ids
+            ).distinct()
+
+        # Если мало статей с общими тегами, добавляем по категории
+        if related_articles.count() < 4:
+            category_articles = Article.objects.filter(
+                category=article.category,
+                status='published'
+            ).exclude(id=article.id)
+            related_articles = (related_articles | category_articles).distinct()[:4]
+
+        context['related_articles'] = related_articles[:4]
+
+        # Популярные теги для сайдбара
+        context['popular_tags'] = Tag.objects.annotate(
+            num_articles=Count('articles')
+        ).filter(num_articles__gt=0).order_by('-num_articles')[:15]
 
         return context
 
+
+class TagArticlesView(ListView):
+    model = Article
+    template_name = 'docs/articles/tag_articles.html'
+    context_object_name = 'articles'
+    paginate_by = 12
+
+    def get_queryset(self):
+        self.tag = get_object_or_404(Tag, slug=self.kwargs['slug'])
+        return Article.objects.filter(
+            tags=self.tag,
+            status='published'
+        ).select_related('author', 'category').prefetch_related('tags')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['tag'] = self.tag
+        context['categories'] = Category.objects.all()
+        context['popular_tags'] = Tag.objects.annotate(
+            num_articles=Count('articles')
+        ).filter(num_articles__gt=0).order_by('-num_articles')[:15]
+        return context
 
 class ArticleCreateView(LoginRequiredMixin, CreateView):
     model = Article
@@ -97,7 +144,7 @@ class ArticleUpdateView(LoginRequiredMixin, UpdateView):
     template_name = 'docs/articles/article_form.html'
 
     def get_queryset(self):
-        return Article.objects.filter(author=self.request.user)
+        return Article.objects.filter(author=self.request.user).prefetch_related('tags')
 
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
@@ -121,14 +168,30 @@ class CategoryArticlesView(ListView):
         self.category = get_object_or_404(Category, slug=self.kwargs['slug'])
         return Article.objects.filter(
             category=self.category, status='published'
-        ).select_related('author', 'category')
+        ).select_related('author', 'category').prefetch_related('tags')
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['category'] = self.category
         context['categories'] = Category.objects.all()
+        context['popular_tags'] = Tag.objects.annotate(
+            num_articles=Count('articles')
+        ).filter(num_articles__gt=0).order_by('-num_articles')[:15]
         return context
 
+
+# ДОБАВЛЯЕМ ПРЕДСТАВЛЕНИЕ ДЛЯ ВСЕХ ТЕГОВ
+def tag_cloud(request):
+    """Облако тегов"""
+    tags = Tag.objects.annotate(
+        num_articles=Count('articles')
+    ).filter(num_articles__gt=0).order_by('-num_articles')
+
+    return render(request, 'docs/tags/tag_cloud.html', {
+        'tags': tags,
+        'categories': Category.objects.all(),
+        'popular_tags': tags[:15]
+    })
 
 class SearchView(ListView):
     model = Article
