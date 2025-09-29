@@ -1,8 +1,8 @@
 from django.contrib import admin
-from django.contrib.auth.models import User, Group
+from django.contrib.auth.models import User
 from django.contrib.auth.admin import UserAdmin
 from django.utils.html import format_html
-from .models import Article, Category
+from .models import Article, Category, Tag
 from django.utils import timezone
 from django import forms
 from mdeditor.fields import MDTextFormField
@@ -17,9 +17,17 @@ class ArticleAdminForm(forms.ModelForm):
         fields = '__all__'
 
 
-# Отмена регистрации стандартных моделей (если нужно кастомное отображение)
-# admin.site.unregister(User)
-# admin.site.unregister(Group)
+@admin.register(Tag)
+class TagAdmin(admin.ModelAdmin):
+    list_display = ['name', 'slug', 'article_count', 'created_at']
+    list_filter = ['created_at']
+    search_fields = ['name', 'description']
+    prepopulated_fields = {'slug': ('name',)}
+    readonly_fields = ['created_at']
+
+    def article_count(self, obj):
+        return obj.article_count()
+    article_count.short_description = 'Кол-во статей'
 
 @admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):
@@ -52,17 +60,21 @@ class ArticleAdmin(admin.ModelAdmin):
     form = ArticleAdminForm  # ← используем нашу форму
     list_display = ['title', 'author', 'category', 'status', 'view_count',
                     'created_at', 'published_at', 'preview_link']
-    list_filter = ['status', 'category', 'created_at', 'published_at']
-    search_fields = ['title', 'content', 'excerpt', 'author__username']
+    list_filter = ['status', 'category', 'tags', 'created_at', 'published_at']
+    search_fields = ['title', 'content', 'excerpt', 'author__username', 'tags__name']
     list_editable = ['status']
-    readonly_fields = ['created_at', 'updated_at', 'published_at', 'view_count']  # УБРАЛИ 'slug' отсюда
+    readonly_fields = ['created_at', 'updated_at', 'published_at', 'view_count']
     prepopulated_fields = {'slug': ('title',)}
     date_hierarchy = 'created_at'
+    filter_horizontal = ['tags']  # Удобный выбор тегов
 
     # Поля для отображения в форме
     fieldsets = (
         ('Основная информация', {
             'fields': ('title', 'slug', 'author', 'category', 'excerpt')
+        }),
+        ('Теги', {
+            'fields': ('tags',)
         }),
         ('Содержание', {
             'fields': ('content',)

@@ -19,6 +19,10 @@ urlpatterns = [
     # Редактирование статьи
     path('articles/<slug:slug>/edit/', views.ArticleUpdateView.as_view(), name='edit_article'),  # ДОБАВИЛИ: согласованное имя
 
+    # ДОБАВЛЯЕМ МАРШРУТЫ ДЛЯ ТЕГОВ
+    path('tags/', views.tag_cloud, name='tag_cloud'),
+    path('tag/<slug:slug>/', views.TagArticlesView.as_view(), name='tag_articles'),
+
     # Статьи по категории
     path('category/<slug:slug>/', views.CategoryArticlesView.as_view(), name='category_articles'),
 

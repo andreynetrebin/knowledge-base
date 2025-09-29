@@ -1,5 +1,5 @@
 from django import forms
-from .models import Article, Category
+from .models import Article, Category, Tag
 from mdeditor.fields import MDTextFormField
 from django.contrib.auth.models import User
 from django.contrib.auth.forms import UserCreationForm
@@ -10,6 +10,17 @@ class ArticleForm(forms.ModelForm):
     content = MDTextFormField(
         label='Содержание статьи',
         help_text='Используйте панель инструментов для форматирования текста. Не нужно знать Markdown!'
+    )
+
+    # ДОБАВЛЯЕМ ПОЛЕ ТЕГОВ
+    tags = forms.ModelMultipleChoiceField(
+        queryset=Tag.objects.all(),
+        widget=forms.SelectMultiple(attrs={
+            'class': 'form-control',
+            'data-placeholder': 'Выберите теги...'
+        }),
+        required=False,
+        label='Теги'
     )
 
     class Meta:
@@ -64,6 +75,7 @@ class ArticleAdminForm(forms.ModelForm):
             'excerpt': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
             'category': forms.Select(attrs={'class': 'form-control'}),
             'status': forms.Select(attrs={'class': 'form-control'}),
+            'tags': forms.SelectMultiple(attrs={'class': 'form-control'}),
         }
 
     def __init__(self, *args, **kwargs):

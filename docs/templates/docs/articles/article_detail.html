@@ -37,6 +37,18 @@
                     </div>
                 </div>
 
+                <!-- ДОБАВЛЯЕМ БЛОК ТЕГОВ -->
+                {% if article.tags.all %}
+                <div class="mb-3">
+                    <i class="bi bi-tags text-muted"></i>
+                    {% for tag in article.tags.all %}
+                        <a href="{% url 'docs:tag_articles' tag.slug %}" class="badge bg-primary text-decoration-none me-1">
+                            {{ tag.name }}
+                        </a>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
                 {% if article.excerpt %}
                 <div class="alert alert-info">
                     <strong>Краткое описание:</strong> {{ article.excerpt }}
@@ -76,6 +88,32 @@
     <!-- Боковая панель -->
     <div class="col-lg-4">
         <div class="sticky-sidebar">
+            <!-- ДОБАВЛЯЕМ БЛОК ПОПУЛЯРНЫХ ТЕГОВ -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-tags"></i> Популярные теги</h5>
+                </div>
+                <div class="card-body">
+                    {% if popular_tags %}
+                        <div class="d-flex flex-wrap gap-2">
+                            {% for tag in popular_tags %}
+                                <a href="{% url 'docs:tag_articles' tag.slug %}" class="btn btn-outline-primary btn-sm">
+                                    {{ tag.name }}
+                                    <span class="badge bg-primary ms-1">{{ tag.num_articles|default:tag.article_count }}</span>
+                                </a>
+                            {% endfor %}
+                        </div>
+                        <div class="text-center mt-3">
+                            <a href="{% url 'docs:tag_cloud' %}" class="btn btn-sm btn-outline-secondary">
+                                Все теги <i class="bi bi-arrow-right"></i>
+                            </a>
+                        </div>
+                    {% else %}
+                        <p class="text-muted">Тегов пока нет</p>
+                    {% endif %}
+                </div>
+            </div>
+
             <!-- Автор -->
             <div class="card mb-4">
                 <div class="card-header">

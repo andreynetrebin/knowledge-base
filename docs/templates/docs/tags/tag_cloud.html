@@ -1,0 +1,119 @@
+{% extends 'docs/base.html' %}
+{% load static %}
+
+{% block title %}Облако тегов - База знаний{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h1 class="h4 mb-0">
+                    <i class="bi bi-tags"></i> Облако тегов
+                </h1>
+            </div>
+            <div class="card-body">
+                {% if tags %}
+                    <div class="tag-cloud">
+                        {% for tag in tags %}
+                            {% with tag.article_count as count %}
+                            <a href="{% url 'docs:tag_articles' tag.slug %}"
+                               class="tag tag-size-{% if count > 10 %}xl{% elif count > 5 %}lg{% elif count > 2 %}md{% else %}sm{% endif %}"
+                               title="{{ count }} статей">
+                                {{ tag.name }}
+                                <span class="badge bg-secondary">{{ count }}</span>
+                            </a>
+                            {% endwith %}
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="text-center py-4">
+                        <i class="bi bi-tags display-1 text-muted"></i>
+                        <p class="text-muted mt-3">Тегов пока нет</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <!-- Боковая панель с популярными тегами -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-star"></i> Популярные теги</h5>
+            </div>
+            <div class="card-body">
+                {% if popular_tags %}
+                    <div class="d-flex flex-wrap gap-2">
+                        {% for tag in popular_tags %}
+                            <a href="{% url 'docs:tag_articles' tag.slug %}" class="btn btn-outline-primary btn-sm">
+                                {{ tag.name }} <span class="badge bg-primary ms-1">{{ tag.article_count }}</span>
+                            </a>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="text-muted">Популярных тегов пока нет</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Статистика -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-graph-up"></i> Статистика</h5>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-6">
+                        <h4 class="text-primary">{{ tags.count }}</h4>
+                        <small class="text-muted">Всего тегов</small>
+                    </div>
+                    <div class="col-6">
+                        <h4 class="text-success">{{ tags|length }}</h4>
+                        <small class="text-muted">Активных тегов</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.tag-cloud {
+    text-align: center;
+    line-height: 2.5;
+}
+
+.tag {
+    display: inline-block;
+    margin: 0.3rem;
+    padding: 0.5rem 1rem;
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 2rem;
+    text-decoration: none;
+    color: #495057;
+    transition: all 0.3s ease;
+}
+
+.tag:hover {
+    background: #007bff;
+    color: white;
+    text-decoration: none;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.tag-size-sm { font-size: 0.8rem; }
+.tag-size-md { font-size: 1rem; }
+.tag-size-lg { font-size: 1.2rem; font-weight: 500; }
+.tag-size-xl { font-size: 1.4rem; font-weight: 600; }
+
+.tag .badge {
+    font-size: 0.7em;
+    margin-left: 0.3rem;
+}
+</style>
+{% endblock %}
