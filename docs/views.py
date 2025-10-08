@@ -4,8 +4,9 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.urls import reverse_lazy
 from django.db.models import Count, Q
 from django.contrib.auth import views as auth_views
-from .models import Article, Category, Tag
+from .models import Article, Category, Tag, Comment, Favorite
 from .forms import ArticleForm
+from .comments_forms import CommentForm
 import markdown
 from markdown.extensions.fenced_code import FencedCodeExtension
 from markdown.extensions.codehilite import CodeHiliteExtension
@@ -43,7 +44,7 @@ class ArticleDetailView(DetailView):
     context_object_name = 'article'
 
     def get_queryset(self):
-        return Article.objects.filter(status='published').prefetch_related('tags')
+        return Article.objects.filter(status='published').prefetch_related('tags', 'ratings', 'favorited_by')
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -64,19 +65,44 @@ class ArticleDetailView(DetailView):
             output_format='html5'
         )
 
+        # Форма для комментариев
+        context['comment_form'] = CommentForm()
+
+        # Комментарии статьи (только одобренные и не удаленные)
+        context['comments'] = Comment.objects.filter(
+            article=article,
+            is_approved=True,
+            is_deleted=False,
+            parent__isnull=True  # Только корневые комментарии
+        ).select_related('author').prefetch_related('children').order_by('-created_at')
+
+        # Информация об оценках пользователя
+        if self.request.user.is_authenticated:
+            context['user_rating'] = article.get_user_rating(self.request.user)
+            context['is_favorite'] = Favorite.objects.filter(
+                user=self.request.user,
+                article=article
+            ).exists()
+        else:
+            context['user_rating'] = None
+            context['is_favorite'] = False
+
+        # Статистика
+        context['like_count'] = article.get_like_count()
+        context['dislike_count'] = article.get_dislike_count()
+        context['comment_count'] = article.get_comment_count()
+
         # Похожие статьи (по тегам и категории)
         related_articles = Article.objects.filter(
             status='published'
         ).exclude(id=article.id)
 
-        # Статьи с общими тегами
         tag_ids = article.tags.values_list('id', flat=True)
         if tag_ids:
             related_articles = related_articles.filter(
                 tags__id__in=tag_ids
             ).distinct()
 
-        # Если мало статей с общими тегами, добавляем по категории
         if related_articles.count() < 4:
             category_articles = Article.objects.filter(
                 category=article.category,

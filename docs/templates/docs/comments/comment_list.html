@@ -1,0 +1,33 @@
+<div class="comments-section">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h4 class="mb-0">
+            <i class="bi bi-chat-left-text"></i> Комментарии
+            <span class="badge bg-primary">{{ comment_count }}</span>
+        </h4>
+
+        {% if comments %}
+        <div class="btn-group btn-group-sm">
+            <button class="btn btn-outline-secondary active" data-sort="newest">
+                <i class="bi bi-sort-down"></i> Сначала новые
+            </button>
+            <button class="btn btn-outline-secondary" data-sort="oldest">
+                <i class="bi bi-sort-up"></i> Сначала старые
+            </button>
+        </div>
+        {% endif %}
+    </div>
+
+    {% if comments %}
+        <div class="comments-tree" id="comments-tree">
+            {% for comment in comments %}
+                {% include 'docs/comments/comment_item.html' with comment=comment %}
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="text-center py-5">
+            <i class="bi bi-chat-left-text display-1 text-muted"></i>
+            <h5 class="text-muted mt-3">Комментариев пока нет</h5>
+            <p class="text-muted">Будьте первым, кто оставит комментарий!</p>
+        </div>
+    {% endif %}
+</div>

@@ -1,5 +1,6 @@
 from django.urls import path
 from . import views
+from . import comments_views  # Импортируем views для комментариев
 
 app_name = 'docs'
 
@@ -22,6 +23,15 @@ urlpatterns = [
     # ДОБАВЛЯЕМ МАРШРУТЫ ДЛЯ ТЕГОВ
     path('tags/', views.tag_cloud, name='tag_cloud'),
     path('tag/<slug:slug>/', views.TagArticlesView.as_view(), name='tag_articles'),
+
+    # НОВЫЕ МАРШРУТЫ ДЛЯ КОММЕНТАРИЕВ И ОЦЕНОК
+    path('articles/<slug:slug>/comment/', comments_views.add_comment, name='add_comment'),
+    path('comments/<int:comment_id>/edit/', comments_views.edit_comment, name='edit_comment'),
+    path('comments/<int:comment_id>/delete/', comments_views.delete_comment, name='delete_comment'),
+    path('articles/<slug:slug>/rate/', comments_views.rate_article, name='rate_article'),
+    path('articles/<slug:slug>/rate/remove/', comments_views.remove_rating, name='remove_rating'),
+    path('articles/<slug:slug>/favorite/', comments_views.toggle_favorite, name='toggle_favorite'),
+    path('articles/<slug:slug>/comments/', comments_views.comment_tree, name='comment_tree'),
 
     # Статьи по категории
     path('category/<slug:slug>/', views.CategoryArticlesView.as_view(), name='category_articles'),
