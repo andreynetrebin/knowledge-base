@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.contrib.auth.models import User
 from django.contrib.auth.admin import UserAdmin
 from django.utils.html import format_html
-from .models import Article, Category, Tag
+from .models import Article, Category, Tag, Comment, Rating, Favorite
 from django.utils import timezone
 from django import forms
 from mdeditor.fields import MDTextFormField
@@ -27,7 +27,9 @@ class TagAdmin(admin.ModelAdmin):
 
     def article_count(self, obj):
         return obj.article_count()
+
     article_count.short_description = 'Кол-во статей'
+
 
 @admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):
@@ -53,13 +55,30 @@ class CategoryAdmin(admin.ModelAdmin):
     )
 
 
-
-
 @admin.register(Article)
 class ArticleAdmin(admin.ModelAdmin):
     form = ArticleAdminForm  # ← используем нашу форму
+
+    def comment_count(self, obj):
+        return obj.get_comment_count()
+
+    comment_count.short_description = 'Комментарии'
+
+    def like_count(self, obj):
+        return obj.get_like_count()
+
+    like_count.short_description = '👍'
+
+    def dislike_count(self, obj):
+        return obj.get_dislike_count()
+
+    dislike_count.short_description = '👎'
+
+    # Добавляем в list_display
     list_display = ['title', 'author', 'category', 'status', 'view_count',
+                    'comment_count', 'like_count', 'dislike_count',  # Добавляем счетчики
                     'created_at', 'published_at', 'preview_link']
+
     list_filter = ['status', 'category', 'tags', 'created_at', 'published_at']
     search_fields = ['title', 'content', 'excerpt', 'author__username', 'tags__name']
     list_editable = ['status']
@@ -136,6 +155,7 @@ class ArticleAdmin(admin.ModelAdmin):
 
     make_archived.short_description = 'Архивировать'
 
+
 # Кастомная админка для пользователей (опционально)
 class CustomUserAdmin(UserAdmin):
     list_display = ['username', 'email', 'first_name', 'last_name',
@@ -180,8 +200,71 @@ class PublishedFilter(admin.SimpleListFilter):
                 published_at__gte=timezone.now() - timezone.timedelta(days=7)
             )
 
-# # Если будут комментарии или другие связанные модели
-# class CommentInline(admin.TabularInline):
-#     model = Comment  # Предполагаемая модель
-#     extra = 0
-#     readonly_fields = ['created_at']
+
+# Админка для комментариев
+@admin.register(Comment)
+class CommentAdmin(admin.ModelAdmin):
+    list_display = ['id', 'author', 'article', 'content_preview', 'parent',
+                    'is_approved', 'is_deleted', 'is_edited', 'created_at']
+    list_filter = ['is_approved', 'is_deleted', 'is_edited', 'created_at', 'article']
+    search_fields = ['content', 'author__username', 'article__title']
+    list_editable = ['is_approved', 'is_deleted']
+    readonly_fields = ['created_at', 'updated_at']
+    actions = ['approve_comments', 'reject_comments', 'soft_delete_comments']
+
+    def content_preview(self, obj):
+        return obj.content[:50] + '...' if len(obj.content) > 50 else obj.content
+
+    content_preview.short_description = 'Текст'
+
+    fieldsets = (
+        ('Основная информация', {
+            'fields': ('article', 'author', 'parent', 'content')
+        }),
+        ('Статус', {
+            'fields': ('is_approved', 'is_deleted', 'is_edited')
+        }),
+        ('Даты', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+
+    def approve_comments(self, request, queryset):
+        updated = queryset.update(is_approved=True)
+        self.message_user(request, f'{updated} комментариев одобрено')
+
+    approve_comments.short_description = 'Одобрить выбранные комментарии'
+
+    def reject_comments(self, request, queryset):
+        updated = queryset.update(is_approved=False)
+        self.message_user(request, f'{updated} комментариев отклонено')
+
+    reject_comments.short_description = 'Отклонить выбранные комментарии'
+
+    def soft_delete_comments(self, request, queryset):
+        updated = queryset.update(is_deleted=True)
+        self.message_user(request, f'{updated} комментариев помечено как удаленные')
+
+    soft_delete_comments.short_description = 'Пометить как удаленные'
+
+
+# Админка для оценок
+@admin.register(Rating)
+class RatingAdmin(admin.ModelAdmin):
+    list_display = ['id', 'user', 'article', 'rating_type', 'created_at']
+    list_filter = ['rating_type', 'created_at', 'article']
+    search_fields = ['user__username', 'article__title']
+    readonly_fields = ['created_at']
+
+    def has_add_permission(self, request):
+        return False  # Запрещаем ручное создание оценок
+
+
+# Админка для избранного
+@admin.register(Favorite)
+class FavoriteAdmin(admin.ModelAdmin):
+    list_display = ['id', 'user', 'article', 'created_at']
+    list_filter = ['created_at']
+    search_fields = ['user__username', 'article__title']
+    readonly_fields = ['created_at']

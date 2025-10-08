@@ -59,6 +59,69 @@
             <!-- Содержание статьи -->
             <div class="article-content mb-5">
                 {{ html_content|safe }}
+
+<!-- После основного контента статьи, перед закрывающим </div> для col-lg-8 -->
+
+            <!-- Блок оценок и действий -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <div class="row text-center">
+                        <!-- Лайки/дизлайки -->
+                        <div class="col-md-4 border-end">
+                            <h5>Оценка статьи</h5>
+                            <div class="btn-group" role="group">
+                                <button type="button" class="btn btn-outline-success rating-btn {% if user_rating == 'like' %}active{% endif %}"
+                                        data-rating-type="like"
+                                        {% if not user.is_authenticated %}disabled{% endif %}>
+                                    <i class="bi bi-hand-thumbs-up"></i>
+                                    <span class="like-count">{{ like_count }}</span>
+                                </button>
+                                <button type="button" class="btn btn-outline-danger rating-btn {% if user_rating == 'dislike' %}active{% endif %}"
+                                        data-rating-type="dislike"
+                                        {% if not user.is_authenticated %}disabled{% endif %}>
+                                    <i class="bi bi-hand-thumbs-down"></i>
+                                    <span class="dislike-count">{{ dislike_count }}</span>
+                                </button>
+                            </div>
+                            {% if not user.is_authenticated %}
+                            <small class="text-muted d-block mt-2">
+                                <a href="{% url 'docs:login' %}?next={{ request.path }}">Войдите</a>, чтобы оценить
+                            </small>
+                            {% endif %}
+                        </div>
+
+                        <!-- Избранное -->
+                        <div class="col-md-4 border-end">
+                            <h5>Избранное</h5>
+                            <button type="button" class="btn {% if is_favorite %}btn-warning{% else %}btn-outline-warning{% endif %} favorite-btn"
+                                    {% if not user.is_authenticated %}disabled{% endif %}>
+                                <i class="bi {% if is_favorite %}bi-star-fill{% else %}bi-star{% endif %}"></i>
+                                {% if is_favorite %}В избранном{% else %}В избранное{% endif %}
+                            </button>
+                        </div>
+
+                        <!-- Комментарии -->
+                        <div class="col-md-4">
+                            <h5>Обсуждение</h5>
+                            <a href="#comments-section" class="btn btn-outline-primary">
+                                <i class="bi bi-chat-left-text"></i>
+                                {{ comment_count }} {{ comment_count|pluralize:"комментарий,комментария,комментариев" }}
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Секция комментариев -->
+            <section id="comments-section">
+                <!-- Форма комментария -->
+                {% include 'docs/comments/comment_form.html' %}
+
+                <!-- Список комментариев -->
+                {% include 'docs/comments/comment_list.html' %}
+            </section>
+
+
             </div>
 
             <!-- Действия -->

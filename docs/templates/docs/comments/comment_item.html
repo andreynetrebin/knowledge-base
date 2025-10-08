@@ -1,0 +1,116 @@
+<div class="comment-item mb-4" id="comment-{{ comment.id }}"
+     data-comment-id="{{ comment.id }}"
+     data-depth="{{ comment.level }}">
+
+    <div class="card {% if comment.level > 0 %}ms-4 border-start{% endif %}">
+        <div class="card-body">
+            <!-- Заголовок комментария -->
+            <div class="d-flex justify-content-between align-items-start mb-2">
+                <div class="d-flex align-items-center">
+                    <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-2"
+                         style="width: 32px; height: 32px; font-size: 0.8rem;">
+                        <i class="bi bi-person-fill"></i>
+                    </div>
+                    <div>
+                        <strong class="d-block">{{ comment.author.username }}</strong>
+                        <small class="text-muted">
+                            {{ comment.created_at|date:"d.m.Y H:i" }}
+                            {% if comment.is_edited %}
+                                <span class="badge bg-secondary ms-1">ред.</span>
+                            {% endif %}
+                        </small>
+                    </div>
+                </div>
+
+                <!-- Действия -->
+                {% if user.is_authenticated %}
+                <div class="dropdown">
+                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle"
+                            type="button" data-bs-toggle="dropdown">
+                        <i class="bi bi-three-dots"></i>
+                    </button>
+                    <ul class="dropdown-menu">
+                        <li>
+                            <button class="dropdown-item reply-btn"
+                                    data-comment-id="{{ comment.id }}"
+                                    data-username="{{ comment.author.username }}">
+                                <i class="bi bi-reply"></i> Ответить
+                            </button>
+                        </li>
+                        {% if comment.can_edit user %}
+                        <li>
+                            <button class="dropdown-item edit-btn"
+                                    data-comment-id="{{ comment.id }}">
+                                <i class="bi bi-pencil"></i> Редактировать
+                            </button>
+                        </li>
+                        {% endif %}
+                        {% if comment.can_delete user %}
+                        <li>
+                            <button class="dropdown-item text-danger delete-btn"
+                                    data-comment-id="{{ comment.id }}">
+                                <i class="bi bi-trash"></i> Удалить
+                            </button>
+                        </li>
+                        {% endif %}
+                        <li><hr class="dropdown-divider"></li>
+                        <li>
+                            <a class="dropdown-item" href="#comment-{{ comment.id }}">
+                                <i class="bi bi-link-45deg"></i> Ссылка
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Содержание комментария -->
+            <div class="comment-content mb-3">
+                {{ comment.content|linebreaks|urlize }}
+            </div>
+
+            <!-- Форма редактирования (скрыта по умолчанию) -->
+            <div class="comment-edit-form d-none mb-3">
+                <form method="post" action="{% url 'docs:edit_comment' comment.id %}">
+                    {% csrf_token %}
+                    <textarea class="form-control" name="content" rows="3"
+                              maxlength="1000">{{ comment.content }}</textarea>
+                    <div class="mt-2">
+                        <button type="submit" class="btn btn-primary btn-sm">Сохранить</button>
+                        <button type="button" class="btn btn-secondary btn-sm cancel-edit">Отмена</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Кнопка ответа (для мобильных) -->
+            <div class="d-flex justify-content-between align-items-center">
+                {% if user.is_authenticated %}
+                <button class="btn btn-outline-primary btn-sm reply-btn-mobile"
+                        data-comment-id="{{ comment.id }}"
+                        data-username="{{ comment.author.username }}">
+                    <i class="bi bi-reply"></i> Ответить
+                </button>
+                {% endif %}
+
+                <!-- Счетчик ответов -->
+                {% if comment.children.exists %}
+                <small class="text-muted">
+                    {{ comment.children.count }}
+                    {{ comment.children.count|pluralize:"ответ,ответа,ответов" }}
+                </small>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Дочерние комментарии (ответы) -->
+    {% if comment.children.exists %}
+    <div class="children-comments mt-3">
+        {% for child in comment.children.all %}
+            {% if child.is_approved and not child.is_deleted %}
+                {% include 'docs/comments/comment_item.html' with comment=child %}
+            {% endif %}
+        {% endfor %}
+    </div>
+    {% endif %}
+</div>
