@@ -1,8 +1,7 @@
 <div class="comment-item mb-4" id="comment-{{ comment.id }}"
-     data-comment-id="{{ comment.id }}"
-     data-depth="{{ comment.level }}">
+     data-comment-id="{{ comment.id }}">
 
-    <div class="card {% if comment.level > 0 %}ms-4 border-start{% endif %}">
+    <div class="card">
         <div class="card-body">
             <!-- Заголовок комментария -->
             <div class="d-flex justify-content-between align-items-start mb-2">
@@ -37,7 +36,9 @@
                                 <i class="bi bi-reply"></i> Ответить
                             </button>
                         </li>
-                        {% if comment.can_edit user %}
+
+                        <!-- ИСПРАВЛЕННЫЕ СТРОКИ: убран параметр user -->
+                        {% if comment.can_edit %}
                         <li>
                             <button class="dropdown-item edit-btn"
                                     data-comment-id="{{ comment.id }}">
@@ -45,7 +46,8 @@
                             </button>
                         </li>
                         {% endif %}
-                        {% if comment.can_delete user %}
+
+                        {% if comment.can_delete %}
                         <li>
                             <button class="dropdown-item text-danger delete-btn"
                                     data-comment-id="{{ comment.id }}">
@@ -53,6 +55,7 @@
                             </button>
                         </li>
                         {% endif %}
+
                         <li><hr class="dropdown-divider"></li>
                         <li>
                             <a class="dropdown-item" href="#comment-{{ comment.id }}">
@@ -66,7 +69,7 @@
 
             <!-- Содержание комментария -->
             <div class="comment-content mb-3">
-                {{ comment.content|linebreaks|urlize }}
+                {{ comment.content|linebreaks }}
             </div>
 
             <!-- Форма редактирования (скрыта по умолчанию) -->
@@ -91,21 +94,13 @@
                     <i class="bi bi-reply"></i> Ответить
                 </button>
                 {% endif %}
-
-                <!-- Счетчик ответов -->
-                {% if comment.children.exists %}
-                <small class="text-muted">
-                    {{ comment.children.count }}
-                    {{ comment.children.count|pluralize:"ответ,ответа,ответов" }}
-                </small>
-                {% endif %}
             </div>
         </div>
     </div>
 
     <!-- Дочерние комментарии (ответы) -->
     {% if comment.children.exists %}
-    <div class="children-comments mt-3">
+    <div class="children-comments mt-3 ms-4">
         {% for child in comment.children.all %}
             {% if child.is_approved and not child.is_deleted %}
                 {% include 'docs/comments/comment_item.html' with comment=child %}
