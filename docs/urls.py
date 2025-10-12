@@ -1,6 +1,7 @@
 from django.urls import path
 from . import views
-from . import comments_views  # Импортируем views для комментариев
+from . import comments_views
+from . import version_views  # Новый файл для версионности
 
 app_name = 'docs'
 
@@ -9,7 +10,7 @@ urlpatterns = [
     path('', views.ArticleListView.as_view(), name='article_list'),
 
     # Создание новой статьи
-    path('articles/create/', views.ArticleCreateView.as_view(), name='create_article'),  # ИЗМЕНИЛИ: article_create → create_article
+    path('articles/create/', views.ArticleCreateView.as_view(), name='create_article'),
 
     # Помощь по форматированию
     path('formatting-help/', views.formatting_help, name='formatting_help'),
@@ -17,14 +18,20 @@ urlpatterns = [
     # Просмотр статьи
     path('articles/<slug:slug>/', views.ArticleDetailView.as_view(), name='article_detail'),
 
-    # Редактирование статьи
-    path('articles/<slug:slug>/edit/', views.ArticleUpdateView.as_view(), name='edit_article'),  # ДОБАВИЛИ: согласованное имя
+    # Редактирование статьи (создание новой версии)
+    path('articles/<slug:slug>/edit/', views.ArticleUpdateView.as_view(), name='edit_article'),
 
-    # ДОБАВЛЯЕМ МАРШРУТЫ ДЛЯ ТЕГОВ
+    # НОВЫЕ МАРШРУТЫ ДЛЯ ВЕРСИОННОСТИ
+    path('articles/<slug:slug>/versions/', version_views.ArticleVersionListView.as_view(), name='version_list'),
+    path('articles/<slug:slug>/versions/<int:version_id>/', version_views.VersionDetailView.as_view(), name='version_detail'),
+    path('articles/<slug:slug>/versions/<int:version_id>/restore/', version_views.restore_version, name='restore_version'),
+    path('articles/<slug:slug>/compare/', version_views.compare_versions, name='compare_versions'),
+
+    # Маршруты для тегов
     path('tags/', views.tag_cloud, name='tag_cloud'),
     path('tag/<slug:slug>/', views.TagArticlesView.as_view(), name='tag_articles'),
 
-    # НОВЫЕ МАРШРУТЫ ДЛЯ КОММЕНТАРИЕВ И ОЦЕНОК
+    # Маршруты для комментариев и оценок
     path('articles/<slug:slug>/comment/', comments_views.add_comment, name='add_comment'),
     path('comments/<int:comment_id>/edit/', comments_views.edit_comment, name='edit_comment'),
     path('comments/<int:comment_id>/delete/', comments_views.delete_comment, name='delete_comment'),

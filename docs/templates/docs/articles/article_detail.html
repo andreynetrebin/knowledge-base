@@ -1,6 +1,6 @@
 {% extends 'docs/base.html' %}
 
-{% block title %}{{ article.title }} - База знаний{% endblock %}
+{% block title %}{% if article.current_version %}{{ article.current_version.title }}{% else %}{{ article.title }}{% endif %} - База знаний{% endblock %}
 
 {% block content %}
 <div class="row">
@@ -10,14 +10,32 @@
             <ol class="breadcrumb">
                 <li class="breadcrumb-item"><a href="{% url 'docs:article_list' %}">Главная</a></li>
                 <li class="breadcrumb-item"><a href="{{ article.category.get_absolute_url }}">{{ article.category.name }}</a></li>
-                <li class="breadcrumb-item active">{{ article.title|truncatewords:5 }}</li>
+                <li class="breadcrumb-item active">
+                    {% if article.current_version %}
+                        {{ article.current_version.title|truncatewords:5 }}
+                    {% else %}
+                        {{ article.title|truncatewords:5 }}
+                    {% endif %}
+                </li>
             </ol>
         </nav>
 
+        {% if not article.current_version %}
+        <!-- Сообщение об отсутствии версии -->
+        <div class="alert alert-warning">
+            <h4>Статья временно недоступна</h4>
+            <p>У этой статьи нет содержимого.</p>
+            {% if user == article.author %}
+                <a href="{% url 'docs:edit_article' article.slug %}" class="btn btn-primary">
+                    Добавить содержимое
+                </a>
+            {% endif %}
+        </div>
+        {% else %}
         <article>
             <!-- Заголовок и метаданные -->
             <header class="mb-4">
-                <h1 class="display-6">{{ article.title }}</h1>
+                <h1 class="display-6">{{ article.current_version.title }}</h1>
 
                 <div class="d-flex flex-wrap gap-3 text-muted mb-3">
                     <div>
@@ -35,6 +53,11 @@
                             {{ article.category.name }}
                         </a>
                     </div>
+                    <!-- ДОБАВЛЯЕМ ИНФОРМАЦИЮ О ВЕРСИИ -->
+                    <div>
+                        <i class="bi bi-clock-history"></i>
+                        Версия: v{{ article.current_version.version_number }}
+                    </div>
                 </div>
 
                 <!-- ДОБАВЛЯЕМ БЛОК ТЕГОВ -->
@@ -49,9 +72,23 @@
                 </div>
                 {% endif %}
 
-                {% if article.excerpt %}
+                {% if article.current_version.excerpt %}
                 <div class="alert alert-info">
-                    <strong>Краткое описание:</strong> {{ article.excerpt }}
+                    <strong>Краткое описание:</strong> {{ article.current_version.excerpt }}
+                </div>
+                {% endif %}
+
+                <!-- ДОБАВЛЯЕМ ИНФОРМАЦИЮ ОБ ИЗМЕНЕНИЯХ -->
+                {% if article.current_version.change_reason %}
+                <div class="alert alert-light border">
+                    <strong>Причина изменений:</strong> {{ article.current_version.change_reason }}
+                    <br>
+                    <small class="text-muted">
+                        Версия создана: {{ article.current_version.created_at|date:"d.m.Y H:i" }}
+                        {% if article.current_version.author != article.author %}
+                            пользователем {{ article.current_version.author.username }}
+                        {% endif %}
+                    </small>
                 </div>
                 {% endif %}
             </header>
@@ -59,8 +96,7 @@
             <!-- Содержание статьи -->
             <div class="article-content mb-5">
                 {{ html_content|safe }}
-
-<!-- После основного контента статьи, перед закрывающим </div> для col-lg-8 -->
+            </div>
 
             <!-- Блок оценок и действий -->
             <div class="card mb-4">
@@ -121,24 +157,32 @@
                 {% include 'docs/comments/comment_list.html' %}
             </section>
 
-
-            </div>
-
             <!-- Действия -->
             <footer class="border-top pt-4">
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
                         <small class="text-muted">
                             Обновлено: {{ article.updated_at|date:"d.m.Y H:i" }}
+                            {% if article.current_version.version_number > 1 %}
+                                • Текущая версия: v{{ article.current_version.version_number }}
+                            {% endif %}
                         </small>
                     </div>
 
                     <div class="btn-group">
-                        {% if user == article.author %}
+                        {% if user == article.author or user.is_staff %}
                         <a href="{% url 'docs:edit_article' article.slug %}" class="btn btn-outline-primary btn-sm">
                             <i class="bi bi-pencil"></i> Редактировать
                         </a>
                         {% endif %}
+
+                        <!-- ДОБАВЛЯЕМ ССЫЛКУ НА ИСТОРИЮ ВЕРСИЙ -->
+                        {% if user == article.author or user.is_staff %}
+                        <a href="{% url 'docs:version_list' article.slug %}" class="btn btn-outline-info btn-sm">
+                            <i class="bi bi-clock-history"></i> История версий
+                        </a>
+                        {% endif %}
+
                         <a href="{% url 'docs:article_list' %}" class="btn btn-outline-secondary btn-sm">
                             <i class="bi bi-arrow-left"></i> Назад к статьям
                         </a>
@@ -146,11 +190,36 @@
                 </div>
             </footer>
         </article>
+        {% endif %}
     </div>
 
     <!-- Боковая панель -->
     <div class="col-lg-4">
         <div class="sticky-sidebar">
+            <!-- ДОБАВЛЯЕМ БЛОК ИНФОРМАЦИИ О ВЕРСИИ -->
+            {% if article.current_version and article.versions.count > 1 %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-clock-history"></i> История изменений</h5>
+                </div>
+                <div class="card-body">
+                    <p class="small text-muted mb-2">
+                        Всего версий: {{ article.versions.count }}
+                    </p>
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'docs:version_list' article.slug %}" class="btn btn-outline-primary btn-sm">
+                            <i class="bi bi-list-ul"></i> Показать все версии
+                        </a>
+                        {% if article.versions.count > 1 %}
+                        <a href="{% url 'docs:compare_versions' article.slug %}" class="btn btn-outline-secondary btn-sm">
+                            <i class="bi bi-files"></i> Сравнить версии
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
             <!-- ДОБАВЛЯЕМ БЛОК ПОПУЛЯРНЫХ ТЕГОВ -->
             <div class="card mb-4">
                 <div class="card-header">
@@ -228,7 +297,13 @@
                         <a href="{% url 'docs:article_detail' related.slug %}"
                            class="list-group-item list-group-item-action border-0 px-0">
                             <div class="d-flex w-100 justify-content-between">
-                                <h6 class="mb-1">{{ related.title|truncatewords:4 }}</h6>
+                                <h6 class="mb-1">
+                                    {% if related.current_version %}
+                                        {{ related.current_version.title|truncatewords:4 }}
+                                    {% else %}
+                                        {{ related.title|truncatewords:4 }}
+                                    {% endif %}
+                                </h6>
                             </div>
                             <small class="text-muted">
                                 {{ related.created_at|date:"d.m.Y" }} •
@@ -243,4 +318,14 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// JavaScript для работы с версионностью (если нужно)
+document.addEventListener('DOMContentLoaded', function() {
+    // Можно добавить функциональность для показа diff между версиями
+    // или других взаимодействий, связанных с версионностью
+});
+</script>
 {% endblock %}
