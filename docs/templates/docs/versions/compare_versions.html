@@ -1,0 +1,188 @@
+{% extends 'docs/base.html' %}
+
+{% block title %}Сравнение версий: {{ article.title }} - База знаний{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <nav aria-label="breadcrumb" class="mb-4">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'docs:article_list' %}">Главная</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'docs:article_detail' article.slug %}">{{ article.title|truncatewords:3 }}</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'docs:version_list' article.slug %}">История версий</a></li>
+                <li class="breadcrumb-item active">Сравнение версий</li>
+            </ol>
+        </nav>
+
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1>Сравнение версий</h1>
+            <a href="{% url 'docs:version_list' article.slug %}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> Назад к истории
+            </a>
+        </div>
+
+        <!-- Форма выбора версий для сравнения -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Выберите версии для сравнения</h5>
+            </div>
+            <div class="card-body">
+                <form method="get" class="row g-3">
+                    <div class="col-md-5">
+                        <label for="v1" class="form-label">Первая версия (старая):</label>
+                        <select name="v1" id="v1" class="form-select" required>
+                            <option value="">Выберите версию...</option>
+                            {% for v in versions %}
+                            <option value="{{ v.id }}" {% if version1 and v.id == version1.id %}selected{% endif %}>
+                                v{{ v.version_number }} - {{ v.created_at|date:"d.m.Y H:i" }} - {{ v.author.username }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="col-md-5">
+                        <label for="v2" class="form-label">Вторая версия (новая):</label>
+                        <select name="v2" id="v2" class="form-select" required>
+                            <option value="">Выберите версию...</option>
+                            {% for v in versions %}
+                            <option value="{{ v.id }}" {% if version2 and v.id == version2.id %}selected{% endif %}>
+                                v{{ v.version_number }} - {{ v.created_at|date:"d.m.Y H:i" }} - {{ v.author.username }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="col-md-2 d-flex align-items-end">
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="bi bi-files"></i> Сравнить
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Результаты сравнения -->
+        {% if version1 and version2 %}
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    Сравнение версий
+                    <span class="text-danger">v{{ version1.version_number }}</span>
+                    →
+                    <span class="text-success">v{{ version2.version_number }}</span>
+                </h5>
+            </div>
+            <div class="card-body">
+                <!-- Информация о версиях -->
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <div class="card border-danger">
+                            <div class="card-header bg-danger text-white">
+                                <strong>Версия v{{ version1.version_number }}</strong>
+                            </div>
+                            <div class="card-body">
+                                <p><strong>Автор:</strong> {{ version1.author.username }}</p>
+                                <p><strong>Дата:</strong> {{ version1.created_at|date:"d.m.Y H:i" }}</p>
+                                {% if version1.change_reason %}
+                                <p><strong>Причина:</strong> {{ version1.change_reason }}</p>
+                                {% endif %}
+                                <p><strong>Слов:</strong> {{ version1.content|wordcount }}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card border-success">
+                            <div class="card-header bg-success text-white">
+                                <strong>Версия v{{ version2.version_number }}</strong>
+                            </div>
+                            <div class="card-body">
+                                <p><strong>Автор:</strong> {{ version2.author.username }}</p>
+                                <p><strong>Дата:</strong> {{ version2.created_at|date:"d.m.Y H:i" }}</p>
+                                {% if version2.change_reason %}
+                                <p><strong>Причина:</strong> {{ version2.change_reason }}</p>
+                                {% endif %}
+                                <p><strong>Слов:</strong> {{ version2.content|wordcount }}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Diff контента -->
+                {% if diff_html %}
+                <h6>Изменения в содержании:</h6>
+                <div class="diff-content border rounded p-3 bg-light" style="max-height: 600px; overflow-y: auto;">
+                    {{ diff_html|safe }}
+                </div>
+                {% else %}
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle"></i>
+                    Нет различий в содержании между выбранными версиями.
+                </div>
+                {% endif %}
+
+                <!-- Действия -->
+                <div class="mt-4 text-center">
+                    <div class="btn-group">
+                        <a href="{% url 'docs:version_detail' article.slug version1.id %}"
+                           class="btn btn-outline-danger">
+                            <i class="bi bi-eye"></i> Просмотр v{{ version1.version_number }}
+                        </a>
+                        <a href="{% url 'docs:version_detail' article.slug version2.id %}"
+                           class="btn btn-outline-success">
+                            <i class="bi bi-eye"></i> Просмотр v{{ version2.version_number }}
+                        </a>
+                        {% if version2 != article.current_version %}
+                        <a href="{% url 'docs:restore_version' article.slug version2.id %}"
+                           class="btn btn-outline-warning"
+                           onclick="return confirm('Восстановить версию v{{ version2.version_number }}?')">
+                            <i class="bi bi-arrow-clockwise"></i> Восстановить v{{ version2.version_number }}
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% elif request.GET.v1 and request.GET.v2 %}
+        <div class="alert alert-warning">
+            <i class="bi bi-exclamation-triangle"></i>
+            Не удалось найти выбранные версии для сравнения.
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.diff-content table.diff {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: monospace;
+    font-size: 0.9em;
+}
+.diff-content table.diff th {
+    background-color: #f8f9fa;
+    text-align: center;
+    padding: 0.5rem;
+    border: 1px solid #dee2e6;
+}
+.diff-content table.diff td {
+    padding: 0.25rem 0.5rem;
+    border: 1px solid #dee2e6;
+    vertical-align: top;
+    white-space: pre-wrap;
+}
+.diff-content table.diff .diff_header {
+    background-color: #e9ecef;
+}
+.diff-content table.diff .diff_add {
+    background-color: #d4edda;
+}
+.diff-content table.diff .diff_chg {
+    background-color: #fff3cd;
+}
+.diff-content table.diff .diff_sub {
+    background-color: #f8d7da;
+}
+</style>
+{% endblock %}
