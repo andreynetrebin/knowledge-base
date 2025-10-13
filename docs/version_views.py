@@ -17,6 +17,7 @@ class ArticleVersionListView(LoginRequiredMixin, ListView):
     """Список версий статьи"""
     template_name = 'docs/versions/version_list.html'
     context_object_name = 'versions'
+    paginate_by = 10
 
     def get_queryset(self):
         self.article = get_object_or_404(Article, slug=self.kwargs['slug'])
@@ -35,9 +36,59 @@ class VersionDetailView(DetailView):
     model = ArticleVersion
     template_name = 'docs/versions/version_detail.html'
     context_object_name = 'version'
+    pk_url_kwarg = 'pk'
 
     def get_queryset(self):
-        return ArticleVersion.objects.select_related('article', 'author')
+        article_slug = self.kwargs.get('slug')
+        return ArticleVersion.objects.filter(
+            article__slug=article_slug
+        ).select_related('article', 'author').order_by('-version_number')
+
+    def get_object(self, queryset=None):
+        if queryset is None:
+            queryset = self.get_queryset()
+
+        pk = self.kwargs.get(self.pk_url_kwarg)
+        article_slug = self.kwargs.get('slug')
+
+        version = get_object_or_404(queryset, pk=pk)
+
+        if version.article.slug != article_slug:
+            from django.http import Http404
+            raise Http404("Версия не принадлежит указанной статье")
+
+        return version
+
+    def get_adjacent_versions(self, version):
+        """Получаем предыдущую и следующую версии"""
+        article_versions = ArticleVersion.objects.filter(
+            article=version.article
+        ).order_by('-version_number')
+
+        versions_list = list(article_versions)
+        current_index = None
+
+        # Находим индекс текущей версии в списке
+        for i, v in enumerate(versions_list):
+            if v.id == version.id:
+                current_index = i
+                break
+
+        prev_version = None
+        next_version = None
+
+        if current_index is not None:
+            # Предыдущая версия (более новая)
+            if current_index > 0:
+                prev_version = versions_list[current_index - 1]
+            # Следующая версия (более старая)
+            if current_index < len(versions_list) - 1:
+                next_version = versions_list[current_index + 1]
+
+        return {
+            'prev': prev_version,
+            'next': next_version
+        }
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -58,8 +109,13 @@ class VersionDetailView(DetailView):
         # Проверяем, является ли эта версия текущей
         context['is_current'] = version.article.current_version == version
 
-        return context
+        # Добавляем статью в контекст для удобства
+        context['article'] = version.article
 
+        # Добавляем соседние версии
+        context['adjacent_versions'] = self.get_adjacent_versions(version)
+
+        return context
 
 @login_required
 def restore_version(request, slug, version_id):
@@ -68,10 +124,12 @@ def restore_version(request, slug, version_id):
     version_to_restore = get_object_or_404(
         ArticleVersion,
         id=version_id,
-        article=article
+        article=article  # Проверяем, что версия принадлежит статье
     )
 
     if request.method == 'POST':
+        restore_reason = request.POST.get('restore_reason', '')
+
         # Создаем новую версию на основе восстанавливаемой
         new_version = ArticleVersion.objects.create(
             article=article,
@@ -79,7 +137,7 @@ def restore_version(request, slug, version_id):
             content=version_to_restore.content,
             excerpt=version_to_restore.excerpt,
             author=request.user,
-            change_reason=f'Восстановление версии v{version_to_restore.version_number}'
+            change_reason=restore_reason or f'Восстановление версии v{version_to_restore.version_number}'
         )
 
         # Устанавливаем новую версию как текущую

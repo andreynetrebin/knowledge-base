@@ -1,7 +1,7 @@
 from django.urls import path
 from . import views
 from . import comments_views
-from . import version_views  # Новый файл для версионности
+from . import version_views
 
 app_name = 'docs'
 
@@ -21,9 +21,9 @@ urlpatterns = [
     # Редактирование статьи (создание новой версии)
     path('articles/<slug:slug>/edit/', views.ArticleUpdateView.as_view(), name='edit_article'),
 
-    # НОВЫЕ МАРШРУТЫ ДЛЯ ВЕРСИОННОСТИ
+    # НОВЫЕ МАРШРУТЫ ДЛЯ ВЕРСИОННОСТИ - ИСПРАВЛЕННЫЕ
     path('articles/<slug:slug>/versions/', version_views.ArticleVersionListView.as_view(), name='version_list'),
-    path('articles/<slug:slug>/versions/<int:version_id>/', version_views.VersionDetailView.as_view(), name='version_detail'),
+    path('articles/<slug:slug>/versions/<int:pk>/', version_views.VersionDetailView.as_view(), name='version_detail'),
     path('articles/<slug:slug>/versions/<int:version_id>/restore/', version_views.restore_version, name='restore_version'),
     path('articles/<slug:slug>/compare/', version_views.compare_versions, name='compare_versions'),
 

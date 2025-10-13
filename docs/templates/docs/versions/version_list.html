@@ -1,0 +1,152 @@
+{% extends 'docs/base.html' %}
+
+{% block title %}История версий: {{ article.title }} - База знаний{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <nav aria-label="breadcrumb" class="mb-4">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'docs:article_list' %}">Главная</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'docs:article_detail' article.slug %}">{{ article.title|truncatewords:3 }}</a></li>
+                <li class="breadcrumb-item active">История версий</li>
+            </ol>
+        </nav>
+
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1>История версий</h1>
+            <div class="btn-group">
+                <a href="{% url 'docs:article_detail' article.slug %}" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left"></i> Назад к статье
+                </a>
+                {% if versions|length > 1 %}
+                <a href="{% url 'docs:compare_versions' article.slug %}" class="btn btn-outline-primary">
+                    <i class="bi bi-files"></i> Сравнить версии
+                </a>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-journal-text"></i>
+                    {{ article.title }}
+                </h5>
+                <small class="text-muted">Всего версий: {{ versions|length }}</small>
+            </div>
+
+            <div class="card-body p-0">
+                <div class="list-group list-group-flush">
+                    {% for version in versions %}
+                    <div class="list-group-item {% if version == article.current_version %}list-group-item-primary{% endif %}">
+                        <div class="row align-items-center">
+                            <div class="col-md-8">
+                                <div class="d-flex align-items-center mb-2">
+                                    <h6 class="mb-0 me-3">
+                                        Версия v{{ version.version_number }}
+                                        {% if version == article.current_version %}
+                                            <span class="badge bg-success ms-2">Текущая</span>
+                                        {% endif %}
+                                        {% if version.is_draft %}
+                                            <span class="badge bg-warning ms-2">Черновик</span>
+                                        {% endif %}
+                                    </h6>
+                                </div>
+
+                                <div class="text-muted small mb-2">
+                                    <i class="bi bi-person"></i> {{ version.author.username }}
+                                    <i class="bi bi-calendar ms-2"></i> {{ version.created_at|date:"d.m.Y H:i" }}
+                                </div>
+
+                                {% if version.change_reason %}
+                                <p class="mb-2"><strong>Причина изменений:</strong> {{ version.change_reason }}</p>
+                                {% endif %}
+
+                                <div class="small text-muted">
+                                    <span class="me-3">
+                                        <i class="bi bi-text-paragraph"></i>
+                                        {{ version.content|wordcount }} слов
+                                    </span>
+                                    {% if version.excerpt %}
+                                    <span>
+                                        <i class="bi bi-card-text"></i>
+                                        Есть описание
+                                    </span>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <div class="col-md-4 text-end">
+                                <div class="btn-group btn-group-sm">
+                                    <a href="{% url 'docs:version_detail' article.slug version.id %}"
+                                       class="btn btn-outline-primary">
+                                        <i class="bi bi-eye"></i> Просмотр
+                                    </a>
+
+                                    {% if version != article.current_version %}
+                                    <a href="{% url 'docs:restore_version' article.slug version.id %}"
+                                       class="btn btn-outline-success"
+                                       onclick="return confirm('Восстановить версию v{{ version.version_number }}? Будет создана новая версия на основе этой.')">
+                                        <i class="bi bi-arrow-clockwise"></i> Восстановить
+                                    </a>
+                                    {% endif %}
+
+                                    {% if user == article.author or user.is_staff %}
+                                    <a href="{% url 'docs:edit_article' article.slug %}"
+                                       class="btn btn-outline-secondary">
+                                        <i class="bi bi-pencil"></i> Редактировать
+                                    </a>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <div class="list-group-item text-center text-muted py-4">
+                        <i class="bi bi-clock-history display-4 d-block mb-2"></i>
+                        <h5>История версий пуста</h5>
+                        <p>У этой статьи пока нет сохраненных версий.</p>
+                        <a href="{% url 'docs:edit_article' article.slug %}" class="btn btn-primary">
+                            Создать первую версию
+                        </a>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Статистика по версиям -->
+        {% if versions %}
+        <div class="row mt-4">
+            <div class="col-md-4">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h3 class="text-primary">{{ versions|length }}</h3>
+                        <p class="text-muted mb-0">Всего версий</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h3 class="text-success">{{ article.current_version.version_number }}</h3>
+                        <p class="text-muted mb-0">Текущая версия</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h3 class="text-info">
+                            {{ versions.0.created_at|timesince:versions.1.created_at }}
+                        </h3>
+                        <p class="text-muted mb-0">Время между версиями</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,121 @@
+{% extends 'docs/base.html' %}
+
+{% block title %}Восстановление версии v{{ version.version_number }} - База знаний{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <nav aria-label="breadcrumb" class="mb-4">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'docs:article_list' %}">Главная</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'docs:article_detail' article.slug %}">{{ article.title|truncatewords:3 }}</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'docs:version_list' article.slug %}">История версий</a></li>
+                <li class="breadcrumb-item active">Восстановление версии</li>
+            </ol>
+        </nav>
+
+        <div class="card">
+            <div class="card-header">
+                <h4 class="mb-0 text-center">
+                    <i class="bi bi-arrow-clockwise text-warning"></i>
+                    Восстановление версии
+                </h4>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-warning">
+                    <h5 class="alert-heading">Подтвердите действие</h5>
+                    <p class="mb-0">
+                        Вы собираетесь восстановить версию <strong>v{{ version.version_number }}</strong>
+                        статьи "<strong>{{ article.title }}</strong>".
+                    </p>
+                </div>
+
+                <!-- Информация о версии -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h6 class="mb-0">Информация о версии для восстановления</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <p><strong>Версия:</strong> v{{ version.version_number }}</p>
+                                <p><strong>Автор:</strong> {{ version.author.username }}</p>
+                                <p><strong>Дата создания:</strong> {{ version.created_at|date:"d.m.Y H:i" }}</p>
+                            </div>
+                            <div class="col-md-6">
+                                <p><strong>Заголовок:</strong> {{ version.title }}</p>
+                                <p><strong>Слов в содержании:</strong> {{ version.content|wordcount }}</p>
+                                {% if version.change_reason %}
+                                <p><strong>Причина изменений:</strong> {{ version.change_reason }}</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Предварительный просмотр -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h6 class="mb-0">Предварительный просмотр содержания</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="article-content-preview border rounded p-3 bg-light" style="max-height: 300px; overflow-y: auto;">
+                            {{ version.content|truncatewords:100|linebreaks }}
+                        </div>
+                        {% if version.content|wordcount > 100 %}
+                        <small class="text-muted">Показаны первые 100 слов. Полное содержание будет восстановлено.</small>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Форма подтверждения -->
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="restore_reason" class="form-label">
+                            <strong>Причина восстановления (необязательно):</strong>
+                        </label>
+                        <textarea name="restore_reason" id="restore_reason"
+                                  class="form-control" rows="3"
+                                  placeholder="Например: возврат к более качественной версии..."></textarea>
+                    </div>
+
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{% url 'docs:version_list' article.slug %}" class="btn btn-secondary me-md-2">
+                            <i class="bi bi-x-circle"></i> Отмена
+                        </a>
+                        <button type="submit" class="btn btn-warning">
+                            <i class="bi bi-arrow-clockwise"></i> Восстановить версию
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Информация о текущей версии -->
+        {% if article.current_version %}
+        <div class="card mt-4">
+            <div class="card-header">
+                <h6 class="mb-0">Текущая версия (будет сохранена в истории)</h6>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>Версия:</strong> v{{ article.current_version.version_number }}</p>
+                        <p><strong>Автор:</strong> {{ article.current_version.author.username }}</p>
+                        <p><strong>Дата:</strong> {{ article.current_version.created_at|date:"d.m.Y H:i" }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Заголовок:</strong> {{ article.current_version.title }}</p>
+                        <p><strong>Слов:</strong> {{ article.current_version.content|wordcount }}</p>
+                        {% if article.current_version.change_reason %}
+                        <p><strong>Причина:</strong> {{ article.current_version.change_reason }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
