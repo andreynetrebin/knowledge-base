@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ article.title }} - База знаний</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+        h1 {
+            color: #007bff;
+            margin-bottom: 10px;
+        }
+        .meta {
+            color: #666;
+            font-size: 0.9em;
+            margin-bottom: 20px;
+        }
+        .meta span {
+            margin-right: 15px;
+        }
+        .content {
+            margin-bottom: 30px;
+        }
+        .footer {
+            border-top: 1px solid #ddd;
+            padding-top: 20px;
+            color: #666;
+            font-size: 0.8em;
+        }
+        .tags {
+            margin: 20px 0;
+        }
+        .tag {
+            display: inline-block;
+            background: #007bff;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 3px;
+            font-size: 0.8em;
+            margin-right: 5px;
+        }
+        .codehilite {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 3px;
+            padding: 10px;
+            overflow-x: auto;
+        }
+        pre {
+            margin: 0;
+        }
+        blockquote {
+            border-left: 4px solid #007bff;
+            padding-left: 15px;
+            margin-left: 0;
+            color: #666;
+            font-style: italic;
+        }
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 15px 0;
+        }
+        table, th, td {
+            border: 1px solid #ddd;
+        }
+        th, td {
+            padding: 8px 12px;
+            text-align: left;
+        }
+        th {
+            background-color: #f8f9fa;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>{{ article.title }}</h1>
+        <div class="meta">
+            <span><strong>Автор:</strong> {{ article.author.username }}</span>
+            <span><strong>Создана:</strong> {{ article.created_at|date:"d.m.Y" }}</span>
+            <span><strong>Обновлена:</strong> {{ article.updated_at|date:"d.m.Y" }}</span>
+            <span><strong>Версия:</strong> v{{ version.version_number }}</span>
+        </div>
+
+        {% if article.tags.all %}
+        <div class="tags">
+            <strong>Теги:</strong>
+            {% for tag in article.tags.all %}
+                <span class="tag">{{ tag.name }}</span>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {% if version.excerpt %}
+        <div style="background: #f8f9fa; padding: 15px; border-radius: 5px; margin: 15px 0;">
+            <strong>Краткое описание:</strong> {{ version.excerpt }}
+        </div>
+        {% endif %}
+
+        {% if version.change_reason %}
+        <div style="font-style: italic; color: #666; margin: 10px 0;">
+            <strong>Причина изменений:</strong> {{ version.change_reason }}
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="content">
+        {{ html_content|safe }}
+    </div>
+
+    <div class="footer">
+        <p>Экспортировано из Базы знаний {{ export_date|date:"d.m.Y H:i" }}</p>
+        <p>Категория: {{ article.category.name }}</p>
+        <p>Просмотров: {{ article.view_count }}</p>
+        <p>URL: {% if request %}http://{{ request.get_host }}{% url 'docs:article_detail' article.slug %}{% endif %}</p>
+    </div>
+</body>
+</html>

@@ -1,0 +1,145 @@
+{% extends 'docs/base.html' %}
+
+{% block title %}Экспорт статьи: {{ article.title }} - База знаний{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <nav aria-label="breadcrumb" class="mb-4">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'docs:article_list' %}">Главная</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'docs:article_detail' article.slug %}">{{ article.title|truncatewords:3 }}</a></li>
+                <li class="breadcrumb-item active">Экспорт статьи</li>
+            </ol>
+        </nav>
+
+        <div class="card">
+            <div class="card-header">
+                <h4 class="mb-0">
+                    <i class="bi bi-download"></i>
+                    Экспорт статьи
+                </h4>
+            </div>
+            <div class="card-body">
+                <h5>{{ article.title }}</h5>
+                <p class="text-muted">
+                    Автор: {{ article.author.username }} |
+                    Версия: v{{ article.current_version.version_number }} |
+                    Обновлено: {{ article.updated_at|date:"d.m.Y H:i" }}
+                </p>
+
+                <div class="row mt-4">
+                    <!-- HTML экспорт -->
+                    <div class="col-md-4 mb-3">
+                        <div class="card h-100 text-center">
+                            <div class="card-body">
+                                <i class="bi bi-file-earmark-code display-4 text-primary"></i>
+                                <h5 class="mt-3">HTML</h5>
+                                <p class="text-muted small">Веб-страница с форматированием</p>
+                                <a href="{% url 'docs:export_article' article.slug 'html' %}"
+                                   class="btn btn-primary w-100">
+                                    <i class="bi bi-download"></i> Скачать HTML
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- PDF экспорт -->
+                    <div class="col-md-4 mb-3">
+                        <div class="card h-100 text-center">
+                            <div class="card-body">
+                                <i class="bi bi-file-earmark-pdf display-4 text-danger"></i>
+                                <h5 class="mt-3">PDF</h5>
+                                <p class="text-muted small">Документ для печати</p>
+                                <a href="{% url 'docs:export_article' article.slug 'pdf' %}"
+                                   class="btn btn-danger w-100">
+                                    <i class="bi bi-download"></i> Скачать PDF
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Текстовый экспорт -->
+                    <div class="col-md-4 mb-3">
+                        <div class="card h-100 text-center">
+                            <div class="card-body">
+                                <i class="bi bi-file-earmark-text display-4 text-success"></i>
+                                <h5 class="mt-3">Текст</h5>
+                                <p class="text-muted small">Простой текст без форматирования</p>
+                                <a href="{% url 'docs:export_article' article.slug 'txt' %}"
+                                   class="btn btn-success w-100">
+                                    <i class="bi bi-download"></i> Скачать TXT
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Информация о статье -->
+                <div class="mt-4">
+                    <h6>Информация о статье:</h6>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <ul class="list-unstyled">
+                                <li><strong>Категория:</strong> {{ article.category.name }}</li>
+                                <li><strong>Теги:</strong>
+                                    {% for tag in article.tags.all %}
+                                        {{ tag.name }}{% if not forloop.last %}, {% endif %}
+                                    {% empty %}
+                                        нет тегов
+                                    {% endfor %}
+                                </li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <ul class="list-unstyled">
+                                <li><strong>Просмотров:</strong> {{ article.view_count }}</li>
+                                <li><strong>Слов в статье:</strong> {{ article.current_version.content|wordcount }}</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- История экспортов -->
+                {% if export_history %}
+                <div class="mt-4">
+                    <h6>История ваших экспортов:</h6>
+                    <div class="list-group">
+                        {% for export in export_history %}
+                        <div class="list-group-item">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <span class="badge
+                                        {% if export.export_format == 'pdf' %}bg-danger
+                                        {% elif export.export_format == 'html' %}bg-primary
+                                        {% else %}bg-success{% endif %}">
+                                        {{ export.get_export_format_display }}
+                                    </span>
+                                    <small class="text-muted ms-2">
+                                        {{ export.exported_at|date:"d.m.Y H:i" }}
+                                    </small>
+                                </div>
+                                <div>
+                                    {% if export.file_size %}
+                                    <small class="text-muted">
+                                        {{ export.file_size|filesizeformat }}
+                                    </small>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="text-center mt-3">
+            <a href="{% url 'docs:article_detail' article.slug %}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> Назад к статье
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

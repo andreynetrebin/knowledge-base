@@ -1,0 +1,30 @@
+{{ article.title }}
+{% for i in article.title %}={% endfor %}
+
+Автор: {{ article.author.username }}
+Создана: {{ article.created_at|date:"d.m.Y" }}
+Обновлена: {{ article.updated_at|date:"d.m.Y" }}
+Версия: v{{ version.version_number }}
+Категория: {{ article.category.name }}
+Просмотров: {{ article.view_count }}
+
+{% if article.tags.all %}
+Теги: {% for tag in article.tags.all %}{{ tag.name }}{% if not forloop.last %}, {% endif %}{% endfor %}
+
+{% endif %}
+{% if version.excerpt %}
+Краткое описание:
+{{ version.excerpt }}
+
+{% endif %}
+{% if version.change_reason %}
+Причина изменений: {{ version.change_reason }}
+
+{% endif %}
+СОДЕРЖАНИЕ:
+
+{{ version.content }}
+
+--
+Экспортировано из Базы знаний {{ export_date|date:"d.m.Y H:i" }}
+URL: {% if request %}http://{{ request.get_host }}{% url 'docs:article_detail' article.slug %}{% endif %}
