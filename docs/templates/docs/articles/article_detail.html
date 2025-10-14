@@ -176,6 +176,11 @@
                         </a>
                         {% endif %}
 
+                        <!-- ДОБАВЛЯЕМ КНОПКУ ЭКСПОРТА -->
+                        <a href="{% url 'docs:export_options' article.slug %}" class="btn btn-outline-info btn-sm">
+                            <i class="bi bi-download"></i> Экспорт
+                        </a>
+
                         <!-- ДОБАВЛЯЕМ ССЫЛКУ НА ИСТОРИЮ ВЕРСИЙ -->
                         {% if user == article.author or user.is_staff %}
                         <a href="{% url 'docs:version_list' article.slug %}" class="btn btn-outline-info btn-sm">

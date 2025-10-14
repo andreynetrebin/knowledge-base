@@ -2,6 +2,7 @@ from django.urls import path
 from . import views
 from . import comments_views
 from . import version_views
+from . import export_views
 
 app_name = 'docs'
 
@@ -24,12 +25,17 @@ urlpatterns = [
     # НОВЫЕ МАРШРУТЫ ДЛЯ ВЕРСИОННОСТИ - ИСПРАВЛЕННЫЕ
     path('articles/<slug:slug>/versions/', version_views.ArticleVersionListView.as_view(), name='version_list'),
     path('articles/<slug:slug>/versions/<int:pk>/', version_views.VersionDetailView.as_view(), name='version_detail'),
-    path('articles/<slug:slug>/versions/<int:version_id>/restore/', version_views.restore_version, name='restore_version'),
+    path('articles/<slug:slug>/versions/<int:version_id>/restore/', version_views.restore_version,
+         name='restore_version'),
     path('articles/<slug:slug>/compare/', version_views.compare_versions, name='compare_versions'),
 
     # Маршруты для тегов
     path('tags/', views.tag_cloud, name='tag_cloud'),
     path('tag/<slug:slug>/', views.TagArticlesView.as_view(), name='tag_articles'),
+
+    # НОВЫЕ МАРШРУТЫ ДЛЯ ЭКСПОРТА
+    path('articles/<slug:slug>/export/', export_views.export_article_options, name='export_options'),
+    path('articles/<slug:slug>/export/<str:format_type>/', export_views.export_article, name='export_article'),
 
     # Маршруты для комментариев и оценок
     path('articles/<slug:slug>/comment/', comments_views.add_comment, name='add_comment'),

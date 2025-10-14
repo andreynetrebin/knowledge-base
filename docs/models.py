@@ -388,3 +388,39 @@ class Favorite(models.Model):
 
     def __str__(self):
         return f'{self.user.username} - {self.article.title}'
+
+
+class ArticleExport(models.Model):
+    """Модель для отслеживания экспорта статей"""
+    FORMAT_CHOICES = [
+        ('html', 'HTML'),
+        ('pdf', 'PDF'),
+        ('txt', 'Plain Text'),
+    ]
+
+    article = models.ForeignKey(
+        Article,
+        on_delete=models.CASCADE,
+        related_name='exports',
+        verbose_name='Статья'
+    )
+    export_format = models.CharField(
+        max_length=10,
+        choices=FORMAT_CHOICES,
+        verbose_name='Формат экспорта'
+    )
+    exported_by = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        verbose_name='Экспортировал'
+    )
+    exported_at = models.DateTimeField(auto_now_add=True, verbose_name='Дата экспорта')
+    file_size = models.PositiveIntegerField(null=True, blank=True, verbose_name='Размер файла')
+
+    class Meta:
+        verbose_name = 'Экспорт статьи'
+        verbose_name_plural = 'Экспорты статей'
+        ordering = ['-exported_at']
+
+    def __str__(self):
+        return f'{self.article.title} - {self.get_export_format_display()}'

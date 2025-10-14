@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ article.title }} - База знаний</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 2cm;
+            @bottom-right {
+                content: "Страница " counter(page) " из " counter(pages);
+                font-size: 10px;
+                color: #666;
+            }
+        }
+
+        body {
+            font-family: 'DejaVu Sans', Arial, sans-serif;
+            line-height: 1.4;
+            color: #333;
+            font-size: 12px;
+        }
+
+        .header {
+            border-bottom: 1px solid #007bff;
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            color: #007bff;
+            font-size: 18px;
+            margin-bottom: 8px;
+        }
+
+        .meta {
+            color: #666;
+            font-size: 10px;
+            margin-bottom: 15px;
+        }
+
+        .meta span {
+            margin-right: 12px;
+        }
+
+        .content {
+            margin-bottom: 20px;
+        }
+
+        .footer {
+            border-top: 1px solid #ddd;
+            padding-top: 15px;
+            color: #666;
+            font-size: 9px;
+            margin-top: 30px;
+        }
+
+        .tags {
+            margin: 12px 0;
+        }
+
+        .tag {
+            display: inline-block;
+            background: #007bff;
+            color: white;
+            padding: 1px 6px;
+            border-radius: 2px;
+            font-size: 9px;
+            margin-right: 4px;
+        }
+
+        .codehilite {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 2px;
+            padding: 8px;
+            font-size: 10px;
+            overflow-wrap: break-word;
+        }
+
+        pre {
+            margin: 0;
+            white-space: pre-wrap;
+        }
+
+        blockquote {
+            border-left: 3px solid #007bff;
+            padding-left: 12px;
+            margin-left: 0;
+            color: #666;
+            font-style: italic;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 10px 0;
+            font-size: 10px;
+        }
+
+        table, th, td {
+            border: 1px solid #ddd;
+        }
+
+        th, td {
+            padding: 6px 8px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #f8f9fa;
+        }
+
+        img {
+            max-width: 100%;
+            height: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>{{ article.title }}</h1>
+        <div class="meta">
+            <span><strong>Автор:</strong> {{ article.author.username }}</span>
+            <span><strong>Создана:</strong> {{ article.created_at|date:"d.m.Y" }}</span>
+            <span><strong>Версия:</strong> v{{ version.version_number }}</span>
+        </div>
+
+        {% if article.tags.all %}
+        <div class="tags">
+            <strong>Теги:</strong>
+            {% for tag in article.tags.all %}
+                <span class="tag">{{ tag.name }}</span>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {% if version.excerpt %}
+        <div style="background: #f8f9fa; padding: 10px; border-radius: 3px; margin: 10px 0; font-size: 10px;">
+            <strong>Краткое описание:</strong> {{ version.excerpt }}
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="content">
+        {{ html_content|safe }}
+    </div>
+
+    <div class="footer">
+        <p>Экспортировано из Базы знаний {{ export_date|date:"d.m.Y H:i" }}</p>
+        <p>Категория: {{ article.category.name }} • Просмотров: {{ article.view_count }}</p>
+    </div>
+</body>
+</html>
