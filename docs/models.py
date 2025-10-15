@@ -147,20 +147,42 @@ class Article(models.Model):
         self.save(update_fields=['view_count'])
 
     def get_comment_count(self):
-        return self.comments_article.count()
+        """Количество комментариев к статье"""
+        try:
+            return self.comments_article.filter(
+                is_approved=True,
+                is_deleted=False
+            ).count()
+        except Exception as e:
+            print(f"Error getting comment count: {e}")
+            return 0
 
     def get_like_count(self):
-        return self.ratings.filter(rating_type='like').count()
+        """Количество лайков статьи"""
+        try:
+            return self.ratings.filter(rating_type='like').count()
+        except Exception as e:
+            print(f"Error getting like count: {e}")
+            return 0
 
     def get_dislike_count(self):
-        return self.ratings.filter(rating_type='dislike').count()
+        """Количество дизлайков статьи"""
+        try:
+            return self.ratings.filter(rating_type='dislike').count()
+        except Exception as e:
+            print(f"Error getting dislike count: {e}")
+            return 0
 
     def get_user_rating(self, user):
+        """Рейтинг пользователя для этой статьи"""
         if user.is_authenticated:
-            rating = self.ratings.filter(user=user).first()
-            return rating.rating_type if rating else None
+            try:
+                rating = self.ratings.filter(user=user).first()
+                return rating.rating_type if rating else None
+            except Exception as e:
+                print(f"Error getting user rating: {e}")
+                return None
         return None
-
     @property
     def content(self):
         """Для обратной совместимости - возвращает контент текущей версии"""

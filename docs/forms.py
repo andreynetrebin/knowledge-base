@@ -77,41 +77,8 @@ class ArticleVersionForm(forms.ModelForm):
         }
 
 
-class ArticleCreateForm(forms.Form):
+class ArticleCreateForm(forms.ModelForm):
     """Комбинированная форма для создания статьи и первой версии"""
-    # Поля из Article
-    title = forms.CharField(
-        max_length=200,
-        widget=forms.TextInput(attrs={
-            'class': 'form-control',
-            'placeholder': 'Например: Как настроить Django проект'
-        }),
-        help_text='Придумайте понятный и информативный заголовок'
-    )
-    category = forms.ModelChoiceField(
-        queryset=Category.objects.all(),
-        widget=forms.Select(attrs={'class': 'form-control'}),
-        empty_label="Выберите категорию",
-        help_text='Выберите соответствующую категорию'
-    )
-    tags = forms.ModelMultipleChoiceField(
-        queryset=Tag.objects.all(),
-        widget=forms.SelectMultiple(attrs={
-            'class': 'form-control',
-            'data-placeholder': 'Выберите теги...'
-        }),
-        required=False,
-        help_text='Выберите теги для статьи'
-    )
-    status = forms.ChoiceField(
-        choices=[
-            ('draft', 'Черновик'),
-            ('published', 'Опубликовано'),
-        ],
-        widget=forms.Select(attrs={'class': 'form-control'}),
-        help_text='Опубликованные статьи видны всем пользователям'
-    )
-
     # Поля из ArticleVersion
     content = MDTextFormField(
         label='Содержание статьи',
@@ -136,9 +103,45 @@ class ArticleCreateForm(forms.Form):
         help_text='Опишите, что содержит эта версия'
     )
 
+    # Поле для создания новых тегов
+    new_tags = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control mt-2',
+            'placeholder': 'Введите новые теги через запятую...',
+            'id': 'new-tags-input'
+        }),
+        help_text='🔸 Добавьте новые теги, разделяя их запятыми'
+    )
+
+    class Meta:
+        model = Article
+        fields = ['title', 'category', 'status', 'tags']
+        widgets = {
+            'title': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Например: Как настроить Django проект'
+            }),
+            'category': forms.Select(attrs={'class': 'form-control'}),
+            'status': forms.Select(attrs={'class': 'form-control'}),
+            'tags': forms.SelectMultiple(attrs={
+                'class': 'form-control',
+                'data-placeholder': 'Выберите теги...',
+                'id': 'tags-select'
+            }),
+        }
+        help_texts = {
+            'title': 'Придумайте понятный и информативный заголовок',
+            'category': 'Выберите соответствующую категорию',
+            'status': 'Опубликованные статьи видны всем пользователям',
+        }
+
     def __init__(self, *args, **kwargs):
         self.request = kwargs.pop('request', None)
         super().__init__(*args, **kwargs)
+        self.fields['category'].queryset = Category.objects.all()
+        self.fields['category'].empty_label = "Выберите категорию"
+        self.fields['tags'].queryset = Tag.objects.all()
 
         # Для обычных пользователей ограничиваем статусы
         if self.request and not self.request.user.is_superuser:
@@ -147,33 +150,59 @@ class ArticleCreateForm(forms.Form):
                 ('published', 'Опубликовано'),
             ]
 
+    def clean_new_tags(self):
+        """Валидация новых тегов"""
+        new_tags = self.cleaned_data.get('new_tags', '').strip()
+        if not new_tags:
+            return []
 
-class ArticleUpdateForm(forms.Form):
+        tags_list = [tag.strip() for tag in new_tags.split(',') if tag.strip()]
+
+        # Проверяем длину каждого тега
+        for tag in tags_list:
+            if len(tag) > 50:
+                raise ValidationError(f'Тег "{tag}" слишком длинный (максимум 50 символов)')
+            if len(tag) < 2:
+                raise ValidationError(f'Тег "{tag}" слишком короткий (минимум 2 символа)')
+
+        return tags_list
+
+    def save(self, commit=True):
+        """Сохраняем статью и создаем новые теги"""
+        # Сохраняем статью сначала без тегов
+        article = super().save(commit=False)
+
+        if commit:
+            article.save()
+
+            # Сохраняем выбранные теги
+            self.save_m2m()
+
+            # Создаем и добавляем новые теги
+            new_tags = self.cleaned_data.get('new_tags', [])
+            created_tags = []
+            for tag_name in new_tags:
+                # Создаем slug для тега
+                from django.utils.text import slugify
+                tag_slug = slugify(tag_name)
+
+                # Создаем или получаем тег
+                tag, created = Tag.objects.get_or_create(
+                    name=tag_name,
+                    defaults={'slug': tag_slug}
+                )
+                article.tags.add(tag)
+                if created:
+                    created_tags.append(tag_name)
+
+            # Сохраняем статью снова, чтобы обновить M2M
+            article.save()
+
+        return article
+
+class ArticleUpdateForm(forms.ModelForm):
     """Комбинированная форма для обновления статьи и создания новой версии"""
-    # Поля из Article (метаданные)
-    category = forms.ModelChoiceField(
-        queryset=Category.objects.all(),
-        widget=forms.Select(attrs={'class': 'form-control'}),
-        empty_label="Выберите категорию"
-    )
-    tags = forms.ModelMultipleChoiceField(
-        queryset=Tag.objects.all(),
-        widget=forms.SelectMultiple(attrs={'class': 'form-control'}),
-        required=False
-    )
-    status = forms.ChoiceField(
-        choices=[
-            ('draft', 'Черновик'),
-            ('published', 'Опубликовано'),
-        ],
-        widget=forms.Select(attrs={'class': 'form-control'})
-    )
-
-    # Поля из ArticleVersion (новая версия)
-    title = forms.CharField(
-        max_length=200,
-        widget=forms.TextInput(attrs={'class': 'form-control'})
-    )
+    # Поля из ArticleVersion
     content = MDTextFormField(
         label='Содержание статьи'
     )
@@ -193,11 +222,19 @@ class ArticleUpdateForm(forms.Form):
         })
     )
 
+    class Meta:
+        model = Article
+        fields = ['category', 'status', 'tags']
+
     def __init__(self, *args, **kwargs):
-        # Убираем параметр instance, так как это обычная Form
         self.request = kwargs.pop('request', None)
-        article = kwargs.pop('article', None)
         super().__init__(*args, **kwargs)
+
+        # Предзаполняем поля версии из текущей версии
+        if self.instance and self.instance.current_version:
+            current_version = self.instance.current_version
+            self.fields['content'].initial = current_version.content
+            self.fields['excerpt'].initial = current_version.excerpt
 
         # Для обычных пользователей ограничиваем статусы
         if self.request and not self.request.user.is_superuser:
@@ -205,18 +242,6 @@ class ArticleUpdateForm(forms.Form):
                 ('draft', 'Черновик'),
                 ('published', 'Опубликовано'),
             ]
-
-        # Если статья существует, предзаполняем поля
-        if article:
-            current_version = article.current_version
-            if current_version:
-                self.fields['title'].initial = current_version.title
-                self.fields['content'].initial = current_version.content
-                self.fields['excerpt'].initial = current_version.excerpt
-
-            self.fields['category'].initial = article.category
-            self.fields['tags'].initial = article.tags.all()
-            self.fields['status'].initial = article.status
 
 
 # UserRegisterForm остается без изменений
