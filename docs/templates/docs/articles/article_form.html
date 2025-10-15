@@ -66,19 +66,53 @@
                             </div>
                         </div>
 
-                        <!-- ДОБАВЛЯЕМ БЛОК ТЕГОВ -->
-                        <div class="mb-3">
-                            <label class="form-label">
-                                <i class="bi bi-tags"></i> {{ form.tags.label }}
-                            </label>
-                            {{ form.tags }}
-                            <div class="form-text">
-                                🔸 Удерживайте Ctrl (или Cmd на Mac) для выбора нескольких тегов
-                            </div>
-                            {% if form.tags.help_text %}
-                                <div class="form-text">{{ form.tags.help_text }}</div>
-                            {% endif %}
-                        </div>
+<!-- Теги -->
+<div class="mb-3">
+    <label class="form-label">
+        <i class="bi bi-tags"></i> {{ form.tags.label }}
+    </label>
+    {{ form.tags }}
+    <div class="form-text">
+        🔸 Удерживайте Ctrl (или Cmd на Mac) для выбора нескольких тегов
+    </div>
+    {% if form.tags.help_text %}
+        <div class="form-text">{{ form.tags.help_text }}</div>
+    {% endif %}
+</div>
+
+            <!-- Создание новых тегов -->
+            <div class="mb-3">
+                <label class="form-label">
+                    <i class="bi bi-plus-circle"></i> Создать новые теги
+                </label>
+                {{ form.new_tags }}
+                <div class="form-text">
+                    🔸 Введите новые теги через запятую (например: "python, django, веб-разработка")
+                </div>
+                {% if form.new_tags.help_text %}
+                    <div class="form-text">{{ form.new_tags.help_text }}</div>
+                {% endif %}
+                {% if form.new_tags.errors %}
+                <div class="invalid-feedback d-block">
+                    {% for error in form.new_tags.errors %}
+                        {{ error }}
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Визуальное отображение выбранных тегов -->
+            <div class="mb-3">
+                <label class="form-label">
+                    <i class="bi bi-check2-circle"></i> Выбранные теги:
+                </label>
+                <div id="tags-container" class="d-flex flex-wrap p-3 border rounded bg-light min-h-50" style="min-height: 50px;">
+                    <span class="text-muted">Здесь будут отображаться выбранные теги...</span>
+                </div>
+                <div class="form-text">
+                    🔸 Нажмите на крестик ✕ чтобы удалить тег
+                </div>
+            </div>
 
                         <div class="mb-3">
                             <label class="form-label">{{ form.excerpt.label }}</label>
@@ -149,5 +183,55 @@ $(document).ready(function() {
         console.log('Selected tags:', selectedCount);
     });
 });
+
+
 </script>
+<script>
+// Простой JavaScript для отображения выбранных тегов
+document.addEventListener('DOMContentLoaded', function() {
+    const tagsSelect = document.getElementById('tags-select');
+    const newTagsInput = document.getElementById('new-tags-input');
+    const tagsContainer = document.getElementById('tags-container');
+
+    function updateTagsDisplay() {
+        if (!tagsContainer) return;
+
+        let html = '';
+
+        // Показываем выбранные существующие теги
+        if (tagsSelect) {
+            Array.from(tagsSelect.selectedOptions).forEach(option => {
+                html += `<span class="badge bg-primary me-2 mb-2">${option.text} ✕</span>`;
+            });
+        }
+
+        // Показываем новые теги
+        if (newTagsInput && newTagsInput.value.trim()) {
+            const newTags = newTagsInput.value.split(',').map(tag => tag.trim()).filter(tag => tag);
+            newTags.forEach(tag => {
+                html += `<span class="badge bg-success me-2 mb-2">${tag} (новый) ✕</span>`;
+            });
+        }
+
+        tagsContainer.innerHTML = html || '<span class="text-muted">Теги не выбраны...</span>';
+
+        // Добавляем обработчики для удаления (опционально)
+        tagsContainer.querySelectorAll('.badge').forEach(badge => {
+            badge.style.cursor = 'pointer';
+            badge.addEventListener('click', function() {
+                // Простая реализация - очищаем поле новых тегов
+                if (newTagsInput) newTagsInput.value = '';
+                updateTagsDisplay();
+            });
+        });
+    }
+
+    if (tagsSelect) tagsSelect.addEventListener('change', updateTagsDisplay);
+    if (newTagsInput) newTagsInput.addEventListener('input', updateTagsDisplay);
+
+    updateTagsDisplay();
+});
+</script>
+
+
 {% endblock %}

@@ -49,9 +49,14 @@ class ArticleDetailView(DetailView):
     context_object_name = 'article'
 
     def get_queryset(self):
+        """Исправленный queryset без комбинирования уникальных и неуникальных запросов"""
         return Article.objects.filter(
             status='published'
-        ).prefetch_related('tags', 'ratings', 'favorited_by').select_related('current_version')
+        ).select_related(
+            'author', 'category', 'current_version'
+        ).prefetch_related(
+            'tags', 'ratings', 'favorited_by'
+        )
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -90,71 +95,94 @@ class ArticleDetailView(DetailView):
 
         # Информация об оценках пользователя
         if self.request.user.is_authenticated:
-            context['user_rating'] = article.get_user_rating(self.request.user)
-            context['is_favorite'] = Favorite.objects.filter(
-                user=self.request.user,
-                article=article
-            ).exists()
-
-            # Добавляем ссылку на историю версий для автора
-            if article.author == self.request.user:
-                context['can_view_versions'] = True
+            try:
+                context['user_rating'] = article.get_user_rating(self.request.user)
+                context['is_favorite'] = Favorite.objects.filter(
+                    user=self.request.user,
+                    article=article
+                ).exists()
+            except Exception as e:
+                context['user_rating'] = None
+                context['is_favorite'] = False
+                print(f"Error getting user rating/favorite: {e}")
         else:
             context['user_rating'] = None
             context['is_favorite'] = False
-            context['can_view_versions'] = False
 
         # Статистика
-        context['like_count'] = article.get_like_count()
-        context['dislike_count'] = article.get_dislike_count()
-        context['comment_count'] = article.get_comment_count()
+        try:
+            context['like_count'] = article.get_like_count()
+            context['dislike_count'] = article.get_dislike_count()
+            context['comment_count'] = article.get_comment_count()
+        except Exception as e:
+            context['like_count'] = 0
+            context['dislike_count'] = 0
+            context['comment_count'] = 0
+            print(f"Error getting counts: {e}")
 
         # Похожие статьи (только с текущей версией)
-        related_articles = Article.objects.filter(
-            status='published',
-            current_version__isnull=False
-        ).exclude(id=article.id)
-
-        tag_ids = article.tags.values_list('id', flat=True)
-        if tag_ids:
-            related_articles = related_articles.filter(
-                tags__id__in=tag_ids
-            ).distinct()
-
-        if related_articles.count() < 4:
-            category_articles = Article.objects.filter(
-                category=article.category,
+        try:
+            related_articles = Article.objects.filter(
                 status='published',
-                current_version__isnull=False
-            ).exclude(id=article.id)
-            related_articles = (related_articles | category_articles).distinct()[:4]
+                current_version__isnull=False,
+                category=article.category
+            ).exclude(id=article.id)[:4]
 
-        context['related_articles'] = related_articles[:4]
+            tag_ids = article.tags.values_list('id', flat=True)
+            if tag_ids:
+                related_articles = related_articles.filter(
+                    tags__id__in=tag_ids
+                ).distinct()
+
+            if related_articles.count() < 4:
+                category_articles = Article.objects.filter(
+                    category=article.category,
+                    status='published',
+                    current_version__isnull=False
+                ).exclude(id=article.id)
+                # Используем union вместо |
+                from django.db.models import Q
+                related_articles = related_articles.union(category_articles)[:4]
+
+            context['related_articles'] = related_articles[:4]
+        except Exception as e:
+            context['related_articles'] = Article.objects.none()
+            print(f"Error getting related articles: {e}")
 
         # Популярные теги для сайдбара
-        context['popular_tags'] = Tag.objects.annotate(
-            num_articles=Count('articles')
-        ).filter(num_articles__gt=0).order_by('-num_articles')[:15]
+        try:
+            context['popular_tags'] = Tag.objects.annotate(
+                num_articles=Count('articles')
+            ).filter(num_articles__gt=0).order_by('-num_articles')[:15]
+        except Exception as e:
+            context['popular_tags'] = Tag.objects.none()
+            print(f"Error getting popular tags: {e}")
 
         return context
 
     def get(self, request, *args, **kwargs):
         """Переопределяем get для проверки наличия текущей версии"""
-        self.object = self.get_object()
+        try:
+            self.object = self.get_object()
 
-        # Если нет текущей версии и пользователь - автор, предлагаем создать
-        if not self.object.current_version and self.object.author == request.user:
-            messages.warning(
-                request,
-                'У этой статьи нет содержимого. Перейдите к редактированию, чтобы создать первую версию.'
-            )
-            return redirect('docs:edit_article', slug=self.object.slug)
-        elif not self.object.current_version:
-            messages.error(request, 'Эта статья временно недоступна.')
+            # Если нет текущей версии и пользователь - автор, предлагаем создать
+            if not self.object.current_version and self.object.author == request.user:
+                messages.warning(
+                    request,
+                    'У этой статьи нет содержимого. Перейдите к редактированию, чтобы создать первую версию.'
+                )
+                return redirect('docs:edit_article', slug=self.object.slug)
+            elif not self.object.current_version:
+                messages.error(request, 'Эта статья временно недоступна.')
+                return redirect('docs:article_list')
+
+            context = self.get_context_data(object=self.object)
+            return self.render_to_response(context)
+
+        except Exception as e:
+            messages.error(request, 'Произошла ошибка при загрузке статьи.')
+            print(f"Error in ArticleDetailView: {e}")
             return redirect('docs:article_list')
-
-        context = self.get_context_data(object=self.object)
-        return self.render_to_response(context)
 
 
 class ArticleCreateView(LoginRequiredMixin, CreateView):
@@ -168,17 +196,12 @@ class ArticleCreateView(LoginRequiredMixin, CreateView):
         return kwargs
 
     def form_valid(self, form):
-        # Создаем статью
-        article = Article(
-            title=form.cleaned_data['title'],
-            author=self.request.user,
-            category=form.cleaned_data['category'],
-            status=form.cleaned_data['status']
-        )
-        article.save()
+        # Устанавливаем автора перед сохранением
+        article = form.save(commit=False)
+        article.author = self.request.user
 
-        # Добавляем теги
-        article.tags.set(form.cleaned_data['tags'])
+        # Сохраняем статью (это вызовет метод save() формы)
+        article = form.save()
 
         # Создаем первую версию
         version = ArticleVersion(
@@ -195,10 +218,18 @@ class ArticleCreateView(LoginRequiredMixin, CreateView):
         article.current_version = version
         article.save()
 
-        if article.status == 'published':
-            messages.success(self.request, 'Статья успешно создана и опубликована!')
+        # Показываем сообщение о созданных тегах
+        new_tags = form.cleaned_data.get('new_tags', [])
+        if new_tags:
+            messages.success(
+                self.request,
+                f'Статья создана! Добавлены новые теги: {", ".join(new_tags)}'
+            )
         else:
-            messages.success(self.request, 'Статья успешно сохранена как черновик!')
+            if article.status == 'published':
+                messages.success(self.request, 'Статья успешно создана и опубликована!')
+            else:
+                messages.success(self.request, 'Статья успешно сохранена как черновик!')
 
         return redirect('docs:article_detail', slug=article.slug)
 
@@ -214,10 +245,6 @@ class ArticleUpdateView(LoginRequiredMixin, UpdateView):
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
         kwargs['request'] = self.request
-        kwargs['article'] = self.object
-        # Убираем instance, так как используем обычную Form
-        if 'instance' in kwargs:
-            del kwargs['instance']
         return kwargs
 
     def get_context_data(self, **kwargs):
@@ -229,17 +256,13 @@ class ArticleUpdateView(LoginRequiredMixin, UpdateView):
     def form_valid(self, form):
         article = self.object
 
-        # Обновляем метаданные статьи
-        article.category = form.cleaned_data['category']
-        article.status = form.cleaned_data['status']
-        article.tags.set(form.cleaned_data['tags'])
-        article.save()
+        # Сохраняем метаданные статьи
+        article = form.save()
 
         # Проверяем, нужно ли создавать новую версию
         current_version = article.current_version
         needs_new_version = (
                 not current_version or
-                form.cleaned_data['title'] != current_version.title or
                 form.cleaned_data['content'] != current_version.content or
                 form.cleaned_data['excerpt'] != current_version.excerpt
         )
@@ -248,11 +271,11 @@ class ArticleUpdateView(LoginRequiredMixin, UpdateView):
             # Создаем новую версию
             new_version = ArticleVersion(
                 article=article,
-                title=form.cleaned_data['title'],
+                title=article.title,  # Заголовок берем из статьи
                 content=form.cleaned_data['content'],
                 excerpt=form.cleaned_data['excerpt'],
                 author=self.request.user,
-                change_reason=form.cleaned_data['change_reason'] or 'Обновление статьи'
+                change_reason=form.cleaned_data.get('change_reason', 'Обновление статьи')
             )
             new_version.save()
 
