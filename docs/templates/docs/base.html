@@ -39,6 +39,11 @@
                 </li>
                 {% if user.is_authenticated %}
                 <li class="nav-item">
+                    <a class="nav-link" href="{% url 'docs:user_dashboard' %}">
+                        <i class="bi bi-person-circle"></i> Личный кабинет
+                    </a>
+                </li>
+                <li class="nav-item">
                     <a class="nav-link" href="{% url 'docs:create_article' %}">
                         <i class="bi bi-plus-circle"></i> Новая статья
                     </a>

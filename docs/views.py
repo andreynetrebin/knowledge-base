@@ -2,18 +2,22 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.views.generic import ListView, DetailView, CreateView, UpdateView
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.urls import reverse_lazy
-from django.db.models import Count, Q
 from django.contrib.auth import views as auth_views
+
+from django.views.generic import ListView, TemplateView
+from django.contrib.auth.mixins import LoginRequiredMixin
+from django.db.models import Count, Q
+from django.contrib.auth import login
+from django.contrib import messages
+from django.contrib.auth import logout
+
 from .models import Article, Category, Tag, Comment, Favorite, ArticleVersion
 from .forms import ArticleForm, ArticleCreateForm, ArticleUpdateForm, ArticleVersionForm
 from .comments_forms import CommentForm
 import markdown
 from markdown.extensions.fenced_code import FencedCodeExtension
 from markdown.extensions.codehilite import CodeHiliteExtension
-from django.contrib.auth import login
-from django.contrib import messages
 from .forms import UserRegisterForm
-from django.contrib.auth import logout
 
 
 class ArticleListView(ListView):
@@ -23,23 +27,48 @@ class ArticleListView(ListView):
     paginate_by = 12
 
     def get_queryset(self):
-        # Показываем только статьи с текущей версией
-        return Article.objects.filter(
+        """Возвращаем статьи с учетом прав доступа пользователя"""
+        user = self.request.user
+
+        # Базовый запрос - опубликованные статьи
+        queryset = Article.objects.filter(
             status='published',
             current_version__isnull=False
-        ).select_related('author', 'category', 'current_version')
+        )
+
+        # Если пользователь авторизован, добавляем его приватные статьи
+        if user.is_authenticated:
+            # Объединяем опубликованные статьи и приватные статьи пользователя
+            from django.db.models import Q
+            queryset = Article.objects.filter(
+                Q(status='published') |
+                Q(status='private', author=user) |
+                Q(status='draft', author=user)
+            ).filter(
+                current_version__isnull=False
+            )
+
+        return queryset.select_related('author', 'category', 'current_version')
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        user = self.request.user
+
         context['categories'] = Category.objects.all()
         context['pinned_articles'] = Article.objects.filter(
             status='published',
             is_pinned=True,
             current_version__isnull=False
         )[:5]
+
+        # Популярные теги (только для опубликованных статей)
         context['popular_tags'] = Tag.objects.annotate(
             num_articles=Count('articles')
         ).filter(num_articles__gt=0).order_by('-num_articles')[:20]
+
+        # Добавляем информацию о пользователе для шаблона
+        context['current_user'] = user
+
         return context
 
 
@@ -49,14 +78,33 @@ class ArticleDetailView(DetailView):
     context_object_name = 'article'
 
     def get_queryset(self):
-        """Исправленный queryset без комбинирования уникальных и неуникальных запросов"""
-        return Article.objects.filter(
-            status='published'
-        ).select_related(
-            'author', 'category', 'current_version'
-        ).prefetch_related(
-            'tags', 'ratings', 'favorited_by'
-        )
+        """Возвращаем queryset с учетом прав доступа"""
+        # Базовый queryset - все статьи
+        queryset = Article.objects.all()
+        return queryset
+
+    def dispatch(self, request, *args, **kwargs):
+        """Проверяем доступ к статье перед отображением"""
+        try:
+            article = self.get_object()
+
+            # Проверяем доступ к статье
+            if not article.is_accessible_by(request.user):
+                if article.status == 'draft':
+                    messages.error(request, 'Эта статья находится в черновиках и доступна только автору.')
+                elif article.status == 'private':
+                    messages.error(request, 'Эта статья приватная и доступна только автору.')
+                elif article.status == 'archived':
+                    messages.error(request, 'Эта статья находится в архиве и доступна только автору.')
+                else:
+                    messages.error(request, 'У вас нет доступа к этой статье.')
+                return redirect('docs:article_list')
+
+        except Article.DoesNotExist:
+            messages.error(request, 'Статья не найдена.')
+            return redirect('docs:article_list')
+
+        return super().dispatch(request, *args, **kwargs)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -67,8 +115,9 @@ class ArticleDetailView(DetailView):
             messages.error(self.request, 'Эта статья не имеет содержимого.')
             return context
 
-        # Увеличиваем счетчик просмотров
-        article.increment_view_count()
+        # Увеличиваем счетчик просмотров только для опубликованных статей
+        if article.status == 'published':
+            article.increment_view_count()
 
         # Конвертируем Markdown в HTML
         extensions = [
@@ -82,8 +131,9 @@ class ArticleDetailView(DetailView):
             output_format='html5'
         )
 
-        # Форма для комментариев
-        context['comment_form'] = CommentForm()
+        # Форма для комментариев (только для опубликованных статей)
+        if article.status == 'published':
+            context['comment_form'] = CommentForm()
 
         # Комментарии статьи
         context['comments'] = Comment.objects.filter(
@@ -93,7 +143,6 @@ class ArticleDetailView(DetailView):
             parent__isnull=True
         ).select_related('author').prefetch_related('children').order_by('-created_at')
 
-        # Информация об оценках пользователя
         if self.request.user.is_authenticated:
             try:
                 context['user_rating'] = article.get_user_rating(self.request.user)
@@ -104,12 +153,11 @@ class ArticleDetailView(DetailView):
             except Exception as e:
                 context['user_rating'] = None
                 context['is_favorite'] = False
-                print(f"Error getting user rating/favorite: {e}")
         else:
             context['user_rating'] = None
             context['is_favorite'] = False
 
-        # Статистика
+            # Статистика (только для опубликованных)
         try:
             context['like_count'] = article.get_like_count()
             context['dislike_count'] = article.get_dislike_count()
@@ -118,36 +166,30 @@ class ArticleDetailView(DetailView):
             context['like_count'] = 0
             context['dislike_count'] = 0
             context['comment_count'] = 0
-            print(f"Error getting counts: {e}")
+        else:
+            # Для неопубликованных статей отключаем комментарии и оценки
+            context['comment_form'] = None
+            context['comments'] = []
+            context['user_rating'] = None
+            context['is_favorite'] = False
+            context['like_count'] = 0
+            context['dislike_count'] = 0
+            context['comment_count'] = 0
 
-        # Похожие статьи (только с текущей версией)
-        try:
-            related_articles = Article.objects.filter(
-                status='published',
-                current_version__isnull=False,
-                category=article.category
-            ).exclude(id=article.id)[:4]
-
-            tag_ids = article.tags.values_list('id', flat=True)
-            if tag_ids:
-                related_articles = related_articles.filter(
-                    tags__id__in=tag_ids
-                ).distinct()
-
-            if related_articles.count() < 4:
-                category_articles = Article.objects.filter(
-                    category=article.category,
+            # Похожие статьи (только для опубликованных с текущей версией)
+        if article.status == 'published':
+            try:
+                related_articles = Article.objects.filter(
                     status='published',
-                    current_version__isnull=False
-                ).exclude(id=article.id)
-                # Используем union вместо |
-                from django.db.models import Q
-                related_articles = related_articles.union(category_articles)[:4]
+                    current_version__isnull=False,
+                    category=article.category
+                ).exclude(id=article.id)[:4]
 
-            context['related_articles'] = related_articles[:4]
-        except Exception as e:
+                context['related_articles'] = related_articles
+            except Exception as e:
+                context['related_articles'] = Article.objects.none()
+        else:
             context['related_articles'] = Article.objects.none()
-            print(f"Error getting related articles: {e}")
 
         # Популярные теги для сайдбара
         try:
@@ -411,3 +453,61 @@ def register_view(request):
 def formatting_help(request):
     """Страница помощи по форматированию"""
     return render(request, 'docs/formatting_help.html')
+
+
+class UserDashboardView(LoginRequiredMixin, TemplateView):
+    """Личный кабинет пользователя"""
+    template_name = 'docs/user/dashboard.html'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        user = self.request.user
+
+        user_articles = Article.objects.filter(author=user).exclude(slug='')
+
+        # Опубликованные статьи (публичные)
+        published_articles = user_articles.filter(
+            status='published'
+        ).select_related('category', 'current_version').prefetch_related('tags')
+
+        # Приватные статьи
+        private_articles = user_articles.filter(
+            status='private'
+        ).select_related('category', 'current_version').prefetch_related('tags')
+
+        # Черновики
+        draft_articles = user_articles.filter(
+            status='draft'
+        ).select_related('category', 'current_version').prefetch_related('tags')
+
+        # Статьи в архиве
+        archived_articles = user_articles.filter(
+            status='archived'
+        ).select_related('category', 'current_version').prefetch_related('tags')
+
+        # Статистика
+        total_user_articles = Article.objects.filter(author=user)
+        stats = {
+            'total_articles': total_user_articles.count(),
+            'published_count': published_articles.count(),
+            'private_count': private_articles.count(),
+            'draft_count': draft_articles.count(),
+            'archived_count': archived_articles.count(),
+            'total_views': total_user_articles.aggregate(total_views=Count('view_count'))['total_views'] or 0,
+            'total_comments': Comment.objects.filter(article__author=user).count(),
+        }
+
+        recent_articles = user_articles.order_by('-updated_at')[:5]
+        popular_articles = user_articles.filter(status='published').order_by('-view_count')[:5]
+
+        context.update({
+            'published_articles': published_articles,
+            'private_articles': private_articles,
+            'draft_articles': draft_articles,
+            'archived_articles': archived_articles,
+            'stats': stats,
+            'recent_articles': recent_articles,
+            'popular_articles': popular_articles,
+        })
+
+        return context

@@ -29,6 +29,9 @@ urlpatterns = [
          name='restore_version'),
     path('articles/<slug:slug>/compare/', version_views.compare_versions, name='compare_versions'),
 
+    # НОВЫЙ МАРШРУТ - ЛИЧНЫЙ КАБИНЕТ
+    path('my-articles/', views.UserDashboardView.as_view(), name='user_dashboard'),
+
     # Маршруты для тегов
     path('tags/', views.tag_cloud, name='tag_cloud'),
     path('tag/<slug:slug>/', views.TagArticlesView.as_view(), name='tag_articles'),
