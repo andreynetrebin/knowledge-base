@@ -1,20 +1,15 @@
 {% extends 'docs/base.html' %}
 
-{% block title %}Статьи - База знаний{% endblock %}
+{% block title %}База знаний - Все статьи{% endblock %}
 
 {% block content %}
 <div class="row">
     <!-- Основной контент -->
     <div class="col-lg-8">
         <div class="d-flex justify-content-between align-items-center mb-4">
-            <h1>
-                {% if category %}
-                    <i class="bi bi-folder"></i> {{ category.name }}
-                {% else %}
-                    <i class="bi bi-journal"></i> Все статьи
-                {% endif %}
+            <h1 class="display-6">
+                <i class="bi bi-journal-text"></i> Все статьи
             </h1>
-
             {% if user.is_authenticated %}
             <a href="{% url 'docs:create_article' %}" class="btn btn-primary">
                 <i class="bi bi-plus-circle"></i> Новая статья
@@ -22,90 +17,127 @@
             {% endif %}
         </div>
 
-        {% if category and category.description %}
-        <div class="alert alert-info mb-4">
-            {{ category.description }}
+        <!-- Закрепленные статьи -->
+        {% if pinned_articles %}
+        <div class="card mb-4 border-warning">
+            <div class="card-header bg-warning text-dark">
+                <h5 class="mb-0">
+                    <i class="bi bi-pin-angle"></i> Закрепленные статьи
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    {% for article in pinned_articles %}
+                    <div class="col-md-6 mb-3">
+                        <div class="card h-100">
+                            <div class="card-body">
+                                <h6 class="card-title">
+                                    <a href="{% url 'docs:article_detail' article.slug %}" class="text-decoration-none">
+                                        {{ article.title }}
+                                    </a>
+                                    {% if article.status != 'published' and user == article.author %}
+                                    <span class="badge {{ article.get_status_badge_class }} ms-1">
+                                        <i class="bi {{ article.get_status_icon }}"></i>
+                                    </span>
+                                    {% endif %}
+                                </h6>
+                                <p class="card-text text-muted small">
+                                    {{ article.current_version.excerpt|default:article.current_version.content|truncatewords:20 }}
+                                </p>
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <small class="text-muted">
+                                        <i class="bi bi-person"></i> {{ article.author.username }}
+                                    </small>
+                                    <small class="text-muted">
+                                        <i class="bi bi-calendar"></i> {{ article.created_at|date:"d.m.Y" }}
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
         </div>
         {% endif %}
 
-        <!-- Форма поиска -->
-        <div class="card mb-4">
-            <div class="card-body">
-                <form method="get" action="{% url 'docs:search' %}">
-                    <div class="input-group">
-                        <input type="text" name="q" class="form-control"
-                               placeholder="Поиск статей..." value="{{ query|default:'' }}">
-                        <button class="btn btn-primary" type="submit">
-                            <i class="bi bi-search"></i> Найти
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
-
-        {% if articles %}
         <!-- Список статей -->
+        {% if articles %}
         <div class="row">
             {% for article in articles %}
             <div class="col-md-6 mb-4">
-                <div class="card article-card h-100">
-                    {% if article.is_pinned %}
-                    <div class="card-header py-2 bg-warning text-dark">
-                        <small><i class="bi bi-pin-angle"></i> Закреплено</small>
-                    </div>
-                    {% endif %}
+                <div class="card h-100">
                     <div class="card-body">
+                        <!-- Индикатор статуса -->
+                        {% if article.status != 'published' and user == article.author %}
+                        <div class="mb-2">
+                            <span class="badge {{ article.get_status_badge_class }}">
+                                <i class="bi {{ article.get_status_icon }}"></i>
+                                {{ article.get_status_display }}
+                                {% if article.status == 'private' %}
+                                <small>(только для вас)</small>
+                                {% elif article.status == 'draft' %}
+                                <small>(в разработке)</small>
+                                {% endif %}
+                            </span>
+                        </div>
+                        {% endif %}
+                        
                         <h5 class="card-title">
-                            <a href="{% url 'docs:article_detail' article.slug %}"
-                               class="text-decoration-none text-dark">
+                            <a href="{% url 'docs:article_detail' article.slug %}" class="text-decoration-none">
                                 {{ article.title }}
                             </a>
                         </h5>
-
-                        {% if article.excerpt %}
-                        <p class="card-text">{{ article.excerpt|truncatewords:30 }}</p>
+                        
+                        {% if article.current_version.excerpt %}
+                        <p class="card-text">{{ article.current_version.excerpt }}</p>
                         {% else %}
                         <p class="card-text text-muted">
-                            {{ article.content|striptags|truncatewords:20 }}
+                            {{ article.current_version.content|striptags|truncatewords:30 }}
                         </p>
                         {% endif %}
-
-                        <!-- ДОБАВЛЯЕМ ТЕГИ СТАТЬИ -->
+                        
+                        <!-- Теги -->
                         {% if article.tags.all %}
-                        <div class="mt-2 mb-2">
+                        <div class="mb-2">
                             {% for tag in article.tags.all %}
-                                <a href="{% url 'docs:tag_articles' tag.slug %}"
-                                   class="badge bg-light text-dark text-decoration-none me-1">
-                                    {{ tag.name }}
-                                </a>
+                            <a href="{% url 'docs:tag_articles' tag.slug %}" class="badge bg-light text-dark text-decoration-none me-1">
+                                {{ tag.name }}
+                            </a>
                             {% endfor %}
                         </div>
                         {% endif %}
                     </div>
+                    
                     <div class="card-footer bg-transparent">
                         <div class="d-flex justify-content-between align-items-center">
-                            <small class="text-muted">
-                                <i class="bi bi-person"></i> {{ article.author.username }}
-                            </small>
-                            <small class="text-muted">
-                                <i class="bi bi-calendar"></i> {{ article.created_at|date:"d.m.Y" }}
-                            </small>
-                        </div>
-                        <div class="d-flex justify-content-between align-items-center mt-1">
-                            <small class="text-muted">
-                                <i class="bi bi-folder"></i>
-                                {% if article.category %}
-                                    <a href="{% url 'docs:category_articles' article.category.slug %}" class="text-muted text-decoration-none">
-                                        {{ article.category.name }}
-                                    </a>
-                                {% else %}
-                                    Без категории
+                            <div>
+                                <small class="text-muted">
+                                    <i class="bi bi-person"></i> 
+                                    {{ article.author.username }}
+                                </small>
+                            </div>
+                            <div class="text-end">
+                                <small class="text-muted">
+                                    <i class="bi bi-calendar"></i> {{ article.created_at|date:"d.m.Y" }}
+                                </small>
+                                {% if article.status == 'published' %}
+                                <br>
+                                <small class="text-muted">
+                                    <i class="bi bi-eye"></i> {{ article.view_count }} просмотров
+                                </small>
                                 {% endif %}
-                            </small>
-                            <small class="text-muted">
-                                <i class="bi bi-eye"></i> {{ article.view_count }}
-                            </small>
+                            </div>
                         </div>
+                        
+                        <!-- Категория -->
+                        {% if article.category %}
+                        <div class="mt-2">
+                            <a href="{{ article.category.get_absolute_url }}" class="badge bg-primary text-decoration-none">
+                                <i class="bi bi-folder"></i> {{ article.category.name }}
+                            </a>
+                        </div>
+                        {% endif %}
                     </div>
                 </div>
             </div>
@@ -121,13 +153,19 @@
                     <a class="page-link" href="?page={{ page_obj.previous_page_number }}">Назад</a>
                 </li>
                 {% endif %}
-
+                
                 {% for num in page_obj.paginator.page_range %}
-                <li class="page-item {% if page_obj.number == num %}active{% endif %}">
+                {% if page_obj.number == num %}
+                <li class="page-item active">
+                    <span class="page-link">{{ num }}</span>
+                </li>
+                {% else %}
+                <li class="page-item">
                     <a class="page-link" href="?page={{ num }}">{{ num }}</a>
                 </li>
+                {% endif %}
                 {% endfor %}
-
+                
                 {% if page_obj.has_next %}
                 <li class="page-item">
                     <a class="page-link" href="?page={{ page_obj.next_page_number }}">Вперед</a>
@@ -138,20 +176,17 @@
         {% endif %}
 
         {% else %}
-        <!-- Нет статей -->
-        <div class="alert alert-info text-center">
-            <i class="bi bi-info-circle display-4 d-block mb-3"></i>
-            <h4>Статьи не найдены</h4>
-            <p>
-                {% if query %}
-                По запросу "{{ query }}" ничего не найдено.
-                {% else %}
-                В этой категории пока нет статей.
-                {% endif %}
-            </p>
+        <div class="text-center py-5">
+            <i class="bi bi-journal-text display-1 text-muted"></i>
+            <h3 class="mt-3 text-muted">Статьи не найдены</h3>
+            <p class="text-muted">Попробуйте изменить параметры поиска или фильтрации.</p>
             {% if user.is_authenticated %}
             <a href="{% url 'docs:create_article' %}" class="btn btn-primary">
-                Создать первую статью
+                <i class="bi bi-plus-circle"></i> Создать первую статью
+            </a>
+            {% else %}
+            <a href="{% url 'docs:login' %}" class="btn btn-primary">
+                <i class="bi bi-box-arrow-in-right"></i> Войти для создания статей
             </a>
             {% endif %}
         </div>
@@ -161,8 +196,72 @@
     <!-- Боковая панель -->
     <div class="col-lg-4">
         <div class="sticky-sidebar">
-            <!-- ДОБАВЛЯЕМ БЛОК ТЕГОВ -->
+            <!-- Информация для авторизованных пользователей -->
+            {% if user.is_authenticated %}
             <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-person-circle"></i> Ваши статьи</h5>
+                </div>
+                <div class="card-body">
+                    <p class="small text-muted">
+                        На главной странице отображаются:
+                    </p>
+                    <ul class="small text-muted">
+                        <li>Все опубликованные статьи</li>
+                        <li>Ваши приватные статьи</li>
+                        <li>Ваши черновики</li>
+                    </ul>
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'docs:user_dashboard' %}" class="btn btn-outline-primary btn-sm">
+                            <i class="bi bi-speedometer2"></i> Личный кабинет
+                        </a>
+                        <a href="{% url 'docs:create_article' %}" class="btn btn-primary btn-sm">
+                            <i class="bi bi-plus-circle"></i> Новая статья
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-info-circle"></i> Информация</h5>
+                </div>
+                <div class="card-body">
+                    <p class="small text-muted">
+                        Для создания и управления своими статьями необходимо войти в систему.
+                    </p>
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'docs:login' %}" class="btn btn-primary btn-sm">
+                            <i class="bi bi-box-arrow-in-right"></i> Войти
+                        </a>
+                        <a href="{% url 'docs:register' %}" class="btn btn-outline-primary btn-sm">
+                            <i class="bi bi-person-plus"></i> Зарегистрироваться
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Категории -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-folder"></i> Категории</h5>
+                </div>
+                <div class="card-body">
+                    <div class="list-group list-group-flush">
+                        {% for category in categories %}
+                        <a href="{{ category.get_absolute_url }}" 
+                           class="list-group-item list-group-item-action border-0 px-0 d-flex justify-content-between align-items-center">
+                            {{ category.name }}
+                            <span class="badge bg-primary rounded-pill">{{ category.articles.count }}</span>
+                        </a>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Популярные теги -->
+            <div class="card">
                 <div class="card-header">
                     <h5 class="mb-0"><i class="bi bi-tags"></i> Популярные теги</h5>
                 </div>
@@ -184,66 +283,6 @@
                     {% else %}
                         <p class="text-muted">Тегов пока нет</p>
                     {% endif %}
-                </div>
-            </div>
-
-            <!-- Категории -->
-            <div class="card mb-4">
-                <div class="card-header">
-                    <h5 class="mb-0"><i class="bi bi-folder"></i> Категории</h5>
-                </div>
-                <div class="card-body">
-                    <ul class="category-tree">
-                        <li>
-                            <a href="{% url 'docs:article_list' %}"
-                               class="{% if not category %}fw-bold{% endif %}">
-                                Все статьи
-                            </a>
-                        </li>
-                        {% for cat in categories %}
-                        <li>
-                            <a href="{{ cat.get_absolute_url }}"
-                               class="{% if category and category.id == cat.id %}fw-bold{% endif %}">
-                                {{ cat.name }}
-                            </a>
-                            {% if cat.children.all %}
-                            <ul>
-                                {% for child in cat.children.all %}
-                                <li>
-                                    <a href="{{ child.get_absolute_url }}">{{ child.name }}</a>
-                                </li>
-                                {% endfor %}
-                            </ul>
-                            {% endif %}
-                        </li>
-                        {% endfor %}
-                    </ul>
-                </div>
-            </div>
-
-            <!-- Статистика -->
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0"><i class="bi bi-bar-chart"></i> Статистика</h5>
-                </div>
-                <div class="card-body">
-                    <div class="text-small text-muted">
-                        <div class="mb-1">Статей: {{ articles.paginator.count }}</div>
-                        <div class="mb-1">Категорий: {{ categories|length }}</div>
-                        <div class="mb-1">
-                            Тегов:
-                            {% if popular_tags %}
-                                {{ popular_tags|length }}
-                            {% else %}
-                                0
-                            {% endif %}
-                        </div>
-                        {% if user.is_authenticated %}
-                        <div>Вы вошли как: {{ user.username }}</div>
-                        {% else %}
-                        <div><a href="{% url 'docs:login' %}">Войдите</a> чтобы создавать статьи</div>
-                        {% endif %}
-                    </div>
                 </div>
             </div>
         </div>

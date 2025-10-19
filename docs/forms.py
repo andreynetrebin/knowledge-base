@@ -142,13 +142,25 @@ class ArticleCreateForm(forms.ModelForm):
         self.fields['category'].queryset = Category.objects.all()
         self.fields['category'].empty_label = "Выберите категорию"
         self.fields['tags'].queryset = Tag.objects.all()
+        # Обновляем описание статусов
+        self.fields['status'].help_text = '''
+             <strong>Черновик</strong> - виден только вам, статья в разработке<br>
+             <strong>Приватный</strong> - виден только вам, статья завершена<br>
+             <strong>Опубликовано</strong> - виден всем пользователям<br>
+             <strong>В архиве</strong> - виден только вам, статья скрыта
+         '''
 
-        # Для обычных пользователей ограничиваем статусы
+        # Для обычных пользователей ограничиваем статусы (если нужно)
         if self.request and not self.request.user.is_superuser:
-            self.fields['status'].choices = [
-                ('draft', 'Черновик'),
-                ('published', 'Опубликовано'),
-            ]
+            # Все статусы доступны
+            pass
+
+        # # Для обычных пользователей ограничиваем статусы
+        # if self.request and not self.request.user.is_superuser:
+        #     self.fields['status'].choices = [
+        #         ('draft', 'Черновик'),
+        #         ('published', 'Опубликовано'),
+        #     ]
 
     def clean_new_tags(self):
         """Валидация новых тегов"""

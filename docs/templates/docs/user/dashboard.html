@@ -1,0 +1,437 @@
+{% extends 'docs/base.html' %}
+
+{% block title %}Личный кабинет - База знаний{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <nav aria-label="breadcrumb" class="mb-4">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'docs:article_list' %}">Главная</a></li>
+                <li class="breadcrumb-item active">Личный кабинет</li>
+            </ol>
+        </nav>
+
+        <!-- Заголовок и приветствие -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h1 class="display-6">
+                    <i class="bi bi-person-circle"></i> Личный кабинет
+                </h1>
+                <p class="text-muted">Добро пожаловать, {{ user.username }}! Здесь вы можете управлять своими статьями.</p>
+            </div>
+            <a href="{% url 'docs:create_article' %}" class="btn btn-primary">
+                <i class="bi bi-plus-circle"></i> Новая статья
+            </a>
+        </div>
+
+        <!-- Статистика -->
+        <div class="row mb-5">
+            <div class="col-md-2 mb-3">
+                <div class="card text-center bg-primary text-white">
+                    <div class="card-body">
+                        <i class="bi bi-journal-text display-6"></i>
+                        <h3 class="mt-2">{{ stats.total_articles }}</h3>
+                        <p class="mb-0">Всего статей</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2 mb-3">
+                <div class="card text-center bg-success text-white">
+                    <div class="card-body">
+                        <i class="bi bi-eye display-6"></i>
+                        <h3 class="mt-2">{{ stats.published_count }}</h3>
+                        <p class="mb-0">Опубликовано</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2 mb-3">
+                <div class="card text-center bg-info text-white">
+                    <div class="card-body">
+                        <i class="bi bi-lock display-6"></i>
+                        <h3 class="mt-2">{{ stats.private_count }}</h3>
+                        <p class="mb-0">Приватные</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2 mb-3">
+                <div class="card text-center bg-warning text-white">
+                    <div class="card-body">
+                        <i class="bi bi-file-earmark display-6"></i>
+                        <h3 class="mt-2">{{ stats.draft_count }}</h3>
+                        <p class="mb-0">Черновики</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2 mb-3">
+                <div class="card text-center bg-secondary text-white">
+                    <div class="card-body">
+                        <i class="bi bi-archive display-6"></i>
+                        <h3 class="mt-2">{{ stats.archived_count }}</h3>
+                        <p class="mb-0">В архиве</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2 mb-3">
+                <div class="card text-center bg-dark text-white">
+                    <div class="card-body">
+                        <i class="bi bi-bar-chart display-6"></i>
+                        <h3 class="mt-2">{{ stats.total_views }}</h3>
+                        <p class="mb-0">Просмотров</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+            <!-- Основной контент -->
+            <div class="col-lg-8">
+                <!-- Черновики -->
+                {% if draft_articles %}
+                <div class="card mb-4">
+                    <div class="card-header bg-warning text-dark">
+                        <h5 class="mb-0">
+                            <i class="bi bi-file-earmark"></i> Черновики
+                            <span class="badge bg-dark ms-2">{{ draft_articles|length }}</span>
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="list-group list-group-flush">
+                            {% for article in draft_articles %}
+                            <div class="list-group-item">
+                                <div class="row align-items-center">
+                                    <div class="col-md-8">
+                                        <h6 class="mb-1">
+                                            {% if article.slug %}
+                                                <a href="{% url 'docs:article_detail' article.slug %}" class="text-decoration-none">
+                                                    {{ article.title }}
+                                                </a>
+                                            {% else %}
+                                                <span class="text-muted">{{ article.title }} (без slug)</span>
+                                            {% endif %}
+                                        </h6>
+                                        <div class="text-muted small">
+                                            <i class="bi bi-calendar"></i> {{ article.updated_at|date:"d.m.Y H:i" }}
+                                            {% if article.category %}
+                                            • <i class="bi bi-folder"></i> {{ article.category.name }}
+                                            {% endif %}
+                                        </div>
+                                        {% if article.tags.all %}
+                                        <div class="mt-1">
+                                            {% for tag in article.tags.all %}
+                                            <span class="badge bg-secondary badge-sm me-1">{{ tag.name }}</span>
+                                            {% endfor %}
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                    <div class="col-md-4 text-end">
+                                        <div class="btn-group btn-group-sm">
+                                            {% if article.slug %}
+                                            <a href="{% url 'docs:edit_article' article.slug %}"
+                                               class="btn btn-outline-primary">
+                                                <i class="bi bi-pencil"></i> Редактировать
+                                            </a>
+                                            {% else %}
+                                            <span class="text-muted small">Недоступно</span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+                <!-- Приватные статьи -->
+                {% if private_articles %}
+                <div class="card mb-4">
+                    <div class="card-header bg-info text-white">
+                        <h5 class="mb-0">
+                            <i class="bi bi-lock"></i> Приватные статьи
+                            <span class="badge bg-light text-dark ms-2">{{ private_articles|length }}</span>
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="list-group list-group-flush">
+                            {% for article in private_articles %}
+                            <div class="list-group-item">
+                                <div class="row align-items-center">
+                                    <div class="col-md-6">
+                                        <h6 class="mb-1">
+                                            {% if article.slug %}
+                                                <a href="{% url 'docs:article_detail' article.slug %}" class="text-decoration-none">
+                                                    {{ article.title }}
+                                                </a>
+                                                <span class="badge bg-info ms-2">
+                                                    <i class="bi bi-lock"></i> Приватный
+                                                </span>
+                                            {% else %}
+                                                <span class="text-muted">{{ article.title }} (без slug)</span>
+                                            {% endif %}
+                                        </h6>
+                                        <div class="text-muted small">
+                                            <i class="bi bi-calendar"></i> {{ article.updated_at|date:"d.m.Y H:i" }}
+                                            {% if article.category %}
+                                            • <i class="bi bi-folder"></i> {{ article.category.name }}
+                                            {% endif %}
+                                        </div>
+                                        {% if article.tags.all %}
+                                        <div class="mt-1">
+                                            {% for tag in article.tags.all %}
+                                            <span class="badge bg-secondary badge-sm me-1">{{ tag.name }}</span>
+                                            {% endfor %}
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                    <div class="col-md-3">
+                                        {% if article.category %}
+                                        <span class="badge bg-primary">
+                                            <i class="bi bi-folder"></i> {{ article.category.name }}
+                                        </span>
+                                        {% endif %}
+                                    </div>
+                                    <div class="col-md-3 text-end">
+                                        <div class="btn-group btn-group-sm">
+                                            {% if article.slug %}
+                                            <a href="{% url 'docs:edit_article' article.slug %}"
+                                               class="btn btn-outline-primary btn-sm">
+                                                <i class="bi bi-pencil"></i>
+                                            </a>
+                                            <a href="{% url 'docs:version_list' article.slug %}"
+                                               class="btn btn-outline-info btn-sm">
+                                                <i class="bi bi-clock-history"></i>
+                                            </a>
+                                            <a href="{% url 'docs:export_options' article.slug %}"
+                                               class="btn btn-outline-success btn-sm">
+                                                <i class="bi bi-download"></i>
+                                            </a>
+                                            {% else %}
+                                            <span class="text-muted small">Недоступно</span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+                <!-- Опубликованные статьи -->
+                <div class="card mb-4">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="mb-0">
+                            <i class="bi bi-check-circle"></i> Опубликованные статьи
+                            <span class="badge bg-light text-dark ms-2">{{ published_articles|length }}</span>
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        {% if published_articles %}
+                        <div class="list-group list-group-flush">
+                            {% for article in published_articles %}
+                            <div class="list-group-item">
+                                <div class="row align-items-center">
+                                    <div class="col-md-6">
+                                        <h6 class="mb-1">
+                                            {% if article.slug %}
+                                                <a href="{% url 'docs:article_detail' article.slug %}" class="text-decoration-none">
+                                                    {{ article.title }}
+                                                </a>
+                                            {% else %}
+                                                <span class="text-muted">{{ article.title }} (без slug)</span>
+                                            {% endif %}
+                                        </h6>
+                                        <div class="text-muted small">
+                                            <i class="bi bi-eye"></i> {{ article.view_count }} просмотров
+                                            • <i class="bi bi-calendar"></i> {{ article.published_at|date:"d.m.Y" }}
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        {% if article.category %}
+                                        <span class="badge bg-primary">
+                                            <i class="bi bi-folder"></i> {{ article.category.name }}
+                                        </span>
+                                        {% endif %}
+                                    </div>
+                                    <div class="col-md-3 text-end">
+                                        <div class="btn-group btn-group-sm">
+                                            {% if article.slug %}
+                                            <a href="{% url 'docs:edit_article' article.slug %}"
+                                               class="btn btn-outline-primary btn-sm">
+                                                <i class="bi bi-pencil"></i>
+                                            </a>
+                                            <a href="{% url 'docs:version_list' article.slug %}"
+                                               class="btn btn-outline-info btn-sm">
+                                                <i class="bi bi-clock-history"></i>
+                                            </a>
+                                            <a href="{% url 'docs:export_options' article.slug %}"
+                                               class="btn btn-outline-success btn-sm">
+                                                <i class="bi bi-download"></i>
+                                            </a>
+                                            {% else %}
+                                            <span class="text-muted small">Недоступно</span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <div class="text-center text-muted py-4">
+                            <i class="bi bi-journal-text display-4 d-block mb-2"></i>
+                            <p>У вас пока нет опубликованных статей.</p>
+                            <a href="{% url 'docs:create_article' %}" class="btn btn-primary">
+                                Создать первую статью
+                            </a>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Архивные статьи -->
+                {% if archived_articles %}
+                <div class="card">
+                    <div class="card-header bg-secondary text-white">
+                        <h5 class="mb-0">
+                            <i class="bi bi-archive"></i> Статьи в архиве
+                            <span class="badge bg-light text-dark ms-2">{{ archived_articles|length }}</span>
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="list-group list-group-flush">
+                            {% for article in archived_articles %}
+                            <div class="list-group-item">
+                                <div class="row align-items-center">
+                                    <div class="col-md-8">
+                                        <h6 class="mb-1 text-muted">
+                                            {% if article.slug %}
+                                                {{ article.title }}
+                                            {% else %}
+                                                <span class="text-muted">{{ article.title }} (без slug)</span>
+                                            {% endif %}
+                                        </h6>
+                                        <div class="text-muted small">
+                                            Архивирована: {{ article.updated_at|date:"d.m.Y H:i" }}
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4 text-end">
+                                        <div class="btn-group btn-group-sm">
+                                            {% if article.slug %}
+                                            <a href="{% url 'docs:edit_article' article.slug %}"
+                                               class="btn btn-outline-secondary">
+                                                <i class="bi bi-pencil"></i> Редактировать
+                                            </a>
+                                            {% else %}
+                                            <span class="text-muted small">Недоступно</span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Боковая панель -->
+            <div class="col-lg-4">
+                <!-- Быстрые действия -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="bi bi-lightning"></i> Быстрые действия</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-grid gap-2">
+                            <a href="{% url 'docs:create_article' %}" class="btn btn-primary">
+                                <i class="bi bi-plus-circle"></i> Новая статья
+                            </a>
+                            <a href="{% url 'docs:article_list' %}" class="btn btn-outline-primary">
+                                <i class="bi bi-journal-text"></i> Все статьи
+                            </a>
+                            <a href="{% url 'docs:tag_cloud' %}" class="btn btn-outline-secondary">
+                                <i class="bi bi-tags"></i> Облако тегов
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Последние статьи -->
+                {% if recent_articles %}
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="bi bi-clock"></i> Недавно обновленные</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="list-group list-group-flush">
+                            {% for article in recent_articles %}
+                            {% if article.slug %}
+                            <a href="{% url 'docs:article_detail' article.slug %}"
+                               class="list-group-item list-group-item-action border-0 px-0">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <h6 class="mb-1">{{ article.title|truncatewords:4 }}</h6>
+                                </div>
+                                <small class="text-muted">
+                                    {{ article.updated_at|date:"d.m.Y H:i" }}
+                                    <span class="badge bg-{% if article.status == 'published' %}success{% elif article.status == 'draft' %}warning{% else %}secondary{% endif %} ms-1">
+                                        {{ article.get_status_display }}
+                                    </span>
+                                </small>
+                            </a>
+                            {% else %}
+                            <div class="list-group-item border-0 px-0">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <h6 class="mb-1 text-muted">{{ article.title|truncatewords:4 }} (без slug)</h6>
+                                </div>
+                                <small class="text-muted">
+                                    {{ article.updated_at|date:"d.m.Y H:i" }}
+                                </small>
+                            </div>
+                            {% endif %}
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Популярные статьи -->
+                {% if popular_articles %}
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="bi bi-fire"></i> Популярные статьи</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="list-group list-group-flush">
+                            {% for article in popular_articles %}
+                            {% if article.slug %}
+                            <a href="{% url 'docs:article_detail' article.slug %}"
+                               class="list-group-item list-group-item-action border-0 px-0">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <h6 class="mb-1">{{ article.title|truncatewords:4 }}</h6>
+                                    <span class="badge bg-primary">{{ article.view_count }}</span>
+                                </div>
+                                <small class="text-muted">
+                                    {{ article.category.name|default:"Без категории" }}
+                                </small>
+                            </a>
+                            {% else %}
+                            <div class="list-group-item border-0 px-0">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <h6 class="mb-1 text-muted">{{ article.title|truncatewords:4 }} (без slug)</h6>
+                                </div>
+                                <small class="text-muted">
+                                    {{ article.category.name|default:"Без категории" }}
+                                </small>
+                            </div>
+                            {% endif %}
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

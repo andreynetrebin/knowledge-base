@@ -92,17 +92,32 @@ class Article(models.Model):
         verbose_name="Категория"
     )
 
+    # ОБНОВЛЕННЫЕ СТАТУСЫ
     STATUS_CHOICES = [
         ('draft', 'Черновик'),
+        ('private', 'Приватный'),
         ('published', 'Опубликовано'),
         ('archived', 'В архиве'),
     ]
+
     status = models.CharField(
         max_length=10,
         choices=STATUS_CHOICES,
         default='draft',
         verbose_name="Статус"
     )
+
+    # # НОВОЕ ПОЛЕ - ВИДИМОСТЬ СТАТЬИ
+    # VISIBILITY_CHOICES = [
+    #     ('public', 'Публичная'),
+    #     ('private', 'Приватная'),
+    # ]
+    # visibility = models.CharField(
+    #     max_length=10,
+    #     choices=VISIBILITY_CHOICES,
+    #     default='public',
+    #     verbose_name="Видимость"
+    # )
 
     view_count = models.PositiveIntegerField(default=0, verbose_name="Просмотры")
     is_pinned = models.BooleanField(default=False, verbose_name="Закреплено")
@@ -131,8 +146,11 @@ class Article(models.Model):
             if Article.objects.filter(slug=self.slug).exists():
                 self.slug = f"{self.slug}-{uuid.uuid4().hex[:8]}"
 
+        # Устанавливаем published_at только для опубликованных статей
         if self.status == 'published' and not self.published_at:
             self.published_at = timezone.now()
+        elif self.status != 'published':
+            self.published_at = None
 
         super().save(*args, **kwargs)
 
@@ -183,6 +201,67 @@ class Article(models.Model):
                 print(f"Error getting user rating: {e}")
                 return None
         return None
+
+    def get_status_badge_class(self):
+        """Возвращает класс CSS для бейджа статуса"""
+        status_classes = {
+            'published': 'bg-success',
+            'draft': 'bg-warning',
+            'archived': 'bg-secondary',
+        }
+        return status_classes.get(self.status, 'bg-secondary')
+
+    def get_status_icon(self):
+        """Возвращает иконку для статуса"""
+        status_icons = {
+            'published': 'bi-eye',
+            'draft': 'bi-file-earmark',
+            'archived': 'bi-archive',
+        }
+        return status_icons.get(self.status, 'bi-question')
+
+    def is_accessible_by(self, user):
+        """Проверяет, может ли пользователь просматривать статью"""
+        # Автор всегда видит все свои статьи
+        if user.is_authenticated and user == self.author:
+            return True
+
+        # Другие пользователи видят только опубликованные статьи
+        if self.status == 'published':
+            return True
+
+        return False
+
+    def get_status_badge_class(self):
+        """Возвращает класс CSS для бейджа статуса"""
+        status_classes = {
+            'published': 'bg-success',
+            'private': 'bg-info',
+            'draft': 'bg-warning',
+            'archived': 'bg-secondary',
+        }
+        return status_classes.get(self.status, 'bg-secondary')
+
+    def get_status_icon(self):
+        """Возвращает иконку для статуса"""
+        status_icons = {
+            'published': 'bi-eye',
+            'private': 'bi-lock',
+            'draft': 'bi-file-earmark',
+            'archived': 'bi-archive',
+        }
+        return status_icons.get(self.status, 'bi-question')
+
+    def get_status_description(self):
+        """Возвращает описание статуса"""
+        status_descriptions = {
+            'published': 'Видна всем пользователям',
+            'private': 'Видна только вам',
+            'draft': 'Видна только вам (в разработке)',
+            'archived': 'Видна только вам (скрыта)',
+        }
+        return status_descriptions.get(self.status, 'Неизвестный статус')
+
     @property
     def content(self):
         """Для обратной совместимости - возвращает контент текущей версии"""
