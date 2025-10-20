@@ -3,11 +3,12 @@ import tempfile
 from datetime import datetime
 from django.template.loader import render_to_string
 from django.http import HttpResponse
-from weasyprint import HTML
-from weasyprint.text.fonts import FontConfiguration
+from xhtml2pdf import pisa
 import markdown
 from markdown.extensions.fenced_code import FencedCodeExtension
 from markdown.extensions.codehilite import CodeHiliteExtension
+from io import BytesIO
+import base64
 
 
 class ArticleExporter:
@@ -40,6 +41,14 @@ class ArticleExporter:
             'request': self.request,
         }
 
+    def _create_pdf_compatible_html(self):
+        """Создает HTML совместимый с xhtml2pdf"""
+        context = self._prepare_context()
+
+        # Используем упрощенный шаблон без проблемного CSS
+        html_content = render_to_string('docs/export/article_pdf_compatible.html', context)
+        return html_content
+
     def export_html(self):
         """Экспорт в HTML"""
         context = self._prepare_context()
@@ -52,36 +61,60 @@ class ArticleExporter:
         return response
 
     def export_pdf(self):
-        """Экспорт в PDF"""
-        context = self._prepare_context()
-        html_content = render_to_string('docs/export/article_pdf.html', context)
+        """Экспорт в PDF с использованием xhtml2pdf"""
+        html_content = self._create_pdf_compatible_html()
 
-        # Создаем временный файл для PDF
-        with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp_file:
-            # Конфигурация для поддержки русских шрифтов
-            font_config = FontConfiguration()
+        # Создаем BytesIO объект для PDF
+        pdf_buffer = BytesIO()
 
-            # Генерируем PDF
-            HTML(string=html_content).write_pdf(
-                tmp_file.name,
-                font_config=font_config,
-                stylesheets=[
-                    # Можно добавить кастомные CSS
-                ]
+        # Конвертируем HTML в PDF с настройками для кириллицы
+        pisa_status = pisa.CreatePDF(
+            src=html_content,
+            dest=pdf_buffer,
+            encoding='utf-8',
+            link_callback=self._link_callback
+        )
+
+        # Проверяем успешность конвертации
+        if pisa_status.err:
+            # В случае ошибки возвращаем текстовое сообщение об ошибке
+            error_response = HttpResponse(
+                f"Ошибка при создании PDF: {pisa_status.err}",
+                content_type='text/plain; charset=utf-8'
             )
+            error_response['Content-Disposition'] = 'attachment; filename="error.txt"'
+            return error_response
 
-            # Читаем сгенерированный PDF
-            with open(tmp_file.name, 'rb') as pdf_file:
-                pdf_content = pdf_file.read()
+        # Получаем PDF данные из буфера
+        pdf_data = pdf_buffer.getvalue()
+        pdf_buffer.close()
 
-            # Удаляем временный файл
-            os.unlink(tmp_file.name)
-
-        response = HttpResponse(pdf_content, content_type='application/pdf')
+        response = HttpResponse(pdf_data, content_type='application/pdf')
         filename = f'{self.article.slug}_{datetime.now().strftime("%Y%m%d_%H%M")}.pdf'
         response['Content-Disposition'] = f'attachment; filename="{filename}"'
 
         return response
+
+    def _link_callback(self, uri, rel):
+        """
+        Callback для обработки ссылок и изображений
+        """
+        # Для локальных файлов можно добавить обработку
+        return uri
+
+    def export_pdf_to_file(self, output_path):
+        """Экспорт в PDF файл (для использования в фоновых задачах)"""
+        html_content = self._create_pdf_compatible_html()
+
+        with open(output_path, 'w+b') as output_file:
+            pisa_status = pisa.CreatePDF(
+                src=html_content,
+                dest=output_file,
+                encoding='utf-8',
+                link_callback=self._link_callback
+            )
+
+        return not pisa_status.err
 
     def export_text(self):
         """Экспорт в простой текст"""
